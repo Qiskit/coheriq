@@ -127,7 +127,7 @@ enable = [
 
 [tool.pytest.ini_options]
 testpaths = ["./src/", "./test/"]
-addopts = "--forked --ignore=test/coverage_startup"
+addopts = "--ignore=test/coverage_startup"
 
 [tool.ruff]
 line-length = 100
