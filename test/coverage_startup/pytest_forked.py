@@ -1,0 +1,190 @@
+# This is a version of https://github.com/pytest-dev/pytest-forked
+# with a minor modification to make it compatible with coverage.
+# It is based on commit 02492cae05c of the pytest-forked repo.
+#
+# The upstream pull request is at
+# https://github.com/pytest-dev/pytest-forked/pull/102.
+#
+# Below is the text of the license which appears in that repository:
+#
+# ---
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+import os
+import warnings
+
+import py
+import pytest
+from _pytest import runner
+
+try:
+    import coverage
+except ImportError:
+    coverage = None
+
+# we know this bit is bad, but we cant help it with the current pytest setup
+
+
+# copied from xdist remote
+def serialize_report(rep):
+    import py
+
+    d = rep.__dict__.copy()
+    if hasattr(rep.longrepr, "toterminal"):
+        d["longrepr"] = str(rep.longrepr)
+    else:
+        d["longrepr"] = rep.longrepr
+    for name in d:
+        if isinstance(d[name], py.path.local):
+            d[name] = str(d[name])
+        elif name == "result":
+            d[name] = None  # for now
+    return d
+
+
+def pytest_addoption(parser):
+    group = parser.getgroup("forked", "forked subprocess test execution")
+    group.addoption(
+        "--forked",
+        action="store_true",
+        dest="forked",
+        default=False,
+        help="box each test run in a separate process (unix)",
+    )
+
+
+def pytest_load_initial_conftests(early_config, parser, args):
+    early_config.addinivalue_line(
+        "markers",
+        "forked: Always fork for this test.",
+    )
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_runtest_protocol(item):
+    if item.config.getvalue("forked") or item.get_closest_marker("forked"):
+        ihook = item.ihook
+        ihook.pytest_runtest_logstart(nodeid=item.nodeid, location=item.location)
+        reports = forked_run_report(item)
+        for rep in reports:
+            ihook.pytest_runtest_logreport(report=rep)
+        ihook.pytest_runtest_logfinish(nodeid=item.nodeid, location=item.location)
+        return True
+
+
+def flush_coverage():
+    if coverage is None:
+        return
+
+    cov = coverage.Coverage.current()
+    if cov:
+        try:
+            cov.stop()
+            cov.save()
+        except Exception:
+            # Don't let coverage errors interfere with test reporting
+            pass
+
+
+def forked_run_report(item):
+    # for now, we run setup/teardown in the subprocess
+    # XXX optionally allow sharing of setup/teardown
+    from _pytest.runner import runtestprotocol
+
+    EXITSTATUS_TESTEXIT = 4
+    import marshal
+
+    def runforked():
+        try:
+            reports = runtestprotocol(item, log=False)
+        except KeyboardInterrupt:
+            flush_coverage()
+            os._exit(EXITSTATUS_TESTEXIT)
+        except BaseException:
+            flush_coverage()
+            raise
+        else:
+            flush_coverage()
+            return marshal.dumps([serialize_report(x) for x in reports])
+
+    ff = py.process.ForkedFunc(runforked)
+    result = ff.waitfinish()
+    if result.retval is not None:
+        report_dumps = marshal.loads(result.retval)
+        return [runner.TestReport(**x) for x in report_dumps]
+    else:
+        if result.exitstatus == EXITSTATUS_TESTEXIT:
+            pytest.exit(f"forked test item {item} raised Exit")
+        return [report_process_crash(item, result)]
+
+
+def report_process_crash(item, result):
+    from _pytest._code import getfslineno
+    import signal as signal_module
+
+    path, lineno = getfslineno(item)
+    if result.signal:
+        sig_name = signal_module.Signals(result.signal).name
+        info = "%s:%s: running the test CRASHED with signal %d (%s)" % (
+            path,
+            lineno,
+            result.signal,
+            sig_name,
+        )
+    else:
+        info = "%s:%s: running the test EXITED with status %d" % (
+            path,
+            lineno,
+            result.exitstatus,
+        )
+    from _pytest import runner
+
+    # pytest >= 4.1
+    has_from_call = getattr(runner.CallInfo, "from_call", None) is not None
+    if has_from_call:
+        call = runner.CallInfo.from_call(lambda: 0 / 0, "???")
+    else:
+        call = runner.CallInfo(lambda: 0 / 0, "???")
+    call.excinfo = info
+    rep = runner.pytest_runtest_makereport(item, call)
+    if result.out:
+        rep.sections.append(("captured stdout", result.out))
+    if result.err:
+        rep.sections.append(("captured stderr", result.err))
+
+    xfail_marker = item.get_closest_marker("xfail")
+    if not xfail_marker:
+        return rep
+
+    rep.outcome = "skipped"
+    rep.wasxfail = (
+        "reason: {xfail_reason}; "
+        "pytest-forked reason: {crash_info}".format(
+            xfail_reason=xfail_marker.kwargs["reason"],
+            crash_info=info,
+        )
+    )
+    warnings.warn(
+        "pytest-forked xfail support is incomplete at the moment and may "
+        "output a misleading reason message",
+        RuntimeWarning,
+    )
+
+    return rep

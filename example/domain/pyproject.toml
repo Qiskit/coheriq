@@ -1,0 +1,11 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "coheriq_ragged_domain"
+version = "0.0.0"
+dependencies = ["coheriq"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/coheriq_ragged_domain"]
