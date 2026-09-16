@@ -65,9 +65,9 @@ in a more limited way, running the portions of the suite that do not require
 
 ## Documentation
 
-- [Conceptual overview](docs/overview.rst) — why Coheriq exists and how it fits together
-- [User guide](docs/guides/user-guide.rst) — enabling an engine
-- [Domain developer guide](docs/guides/domain-development.rst) — for library authors
-- [Engine developer guide](docs/guides/engine-development.rst) — for engine authors
-- [Design FAQ](docs/design-faq.rst)
-- [Demonstrations](docs/demos/) — runnable notebooks, including [diamond inheritance](docs/demos/diamond_inheritance.ipynb) and [an engine with compiled code](docs/demos/compiled_engine_example.ipynb) (which can itself be found in the [`example/`](example/) directory)
+- [Conceptual overview](https://qiskit.github.io/coheriq/overview.html) — why Coheriq exists and how it fits together
+- [User guide](https://qiskit.github.io/coheriq/guides/user-guide.html) — enabling an engine
+- [Domain developer guide](https://qiskit.github.io/coheriq/guides/domain-development.html) — for library authors
+- [Engine developer guide](https://qiskit.github.io/coheriq/guides/engine-development.html) — for engine authors
+- [Design FAQ](https://qiskit.github.io/coheriq/design-faq.html)
+- [Demonstrations](https://qiskit.github.io/coheriq/demos/index.html) — runnable notebooks, including [diamond inheritance](https://qiskit.github.io/coheriq/demos/diamond_inheritance.html) and [an engine with compiled code](https://qiskit.github.io/coheriq/demos/compiled_engine_example.html) (which can itself be found in the [`example/`](https://github.com/Qiskit/coheriq/tree/main/example) directory)
