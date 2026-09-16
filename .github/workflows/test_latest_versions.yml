@@ -47,4 +47,4 @@ jobs:
       - name: Test using tox environment
         shell: bash
         run: |
-          tox -e ${{ matrix.toxenv }} --parallel --parallel-no-spinner
+          tox -e ${{ matrix.toxenv }}
