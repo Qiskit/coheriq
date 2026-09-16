@@ -37,7 +37,7 @@ dev = [
     {include-group = "nbtest"},
     {include-group = "lint"},
     {include-group = "docs"},
-    "tox>=4.4.3",
+    "tox>=4.22.0",
 ]
 basetest = [
     "pytest>=8.0",
