@@ -40,7 +40,9 @@ tox -e style
 tox -e docs
 ```
 
-Pytest is configured (in `pyproject.toml`) to run with `--forked`, so each test runs in a subprocess. This is necessary because `AccelerationDomain` and `AccelerationEngine` use a global registry that cannot be reset between tests.
+The `py`, `coverage`, and `doctest` tox environments run pytest with `--forked`, so each test runs in a subprocess. This is necessary because `AccelerationDomain` and `AccelerationEngine` use a global registry that cannot otherwise be reset between tests. `--forked` is set per-environment (in `tox.ini`), not in `pyproject.toml`, so if you invoke pytest directly on `test/` rather than through tox you must pass `--forked` yourself.
+
+`--forked` relies on `os.fork()` and so does not run on Windows. The envs that need it are therefore Linux/macOS only; the in-process suites below (`notebook`, `ragged`, `ragged-engine`) are what CI runs on Windows.
 
 ### The example engine (`example/engine`) is a compiled C++/nanobind package
 
@@ -52,7 +54,7 @@ For local iteration on the C++ source, an editable install that rebuilds on chan
 pip install --no-build-isolation -e ./example/engine -C editable.rebuild=true
 ```
 
-The example domain (`example/domain`) test suite runs **in-process** (the `ragged`/`ragged-engine` envs pass `-o addopts=` to drop the repo-wide `--forked`): it uses a single domain activated one way per process, selected by the `RAGGED_ENGINE` environment variable.
+The example domain (`example/domain`) test suite runs **in-process** (the `ragged`/`ragged-engine` envs do not pass `--forked`): it uses a single domain activated one way per process, selected by the `RAGGED_ENGINE` environment variable.
 
 ## Architecture
 

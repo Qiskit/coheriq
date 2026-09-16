@@ -55,6 +55,14 @@ mylib.normalize([1.0, 2.0, 3.0])   # now runs on JAX, via the engine
 
 Engines are ordinary Python classes under the hood, so independently developed engines can be combined through diamond inheritance into a hybrid that delivers all of their accelerations at once.
 
+## Supported platforms
+
+Coheriq targets Linux, macOS, and Windows. Its full test suite runs on Linux
+and macOS, operating systems which support isolating each test in its own
+process with `pytest --forked` (this relies on `os.fork()`). Windows is tested
+in a more limited way, running the portions of the suite that do not require
+`--forked`, until a fork-free way to run the rest is worked out.
+
 ## Documentation
 
 - [Conceptual overview](docs/overview.rst) — why Coheriq exists and how it fits together

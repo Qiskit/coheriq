@@ -37,7 +37,7 @@ dev = [
     {include-group = "nbtest"},
     {include-group = "lint"},
     {include-group = "docs"},
-    "tox>=4.4.3",
+    "tox>=4.22.0",
 ]
 basetest = [
     "pytest>=8.0",
@@ -127,7 +127,7 @@ enable = [
 
 [tool.pytest.ini_options]
 testpaths = ["./src/", "./test/"]
-addopts = "--forked"
+addopts = "--ignore=test/coverage_startup"
 
 [tool.ruff]
 line-length = 100
