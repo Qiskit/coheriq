@@ -23,13 +23,13 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
-        toxenv: ["py,notebook,doctest"]
+        toxenv: ["py,notebook,doctest,ragged,ragged-engine"]
         include:
           - os: macos-latest
             python-version: "3.14"
-            toxenv: "py,notebook,doctest"
+            toxenv: "py,notebook,doctest,ragged,ragged-engine"
           # The py and doctest envs use `pytest --forked`, which needs os.fork()
-          # and cannot run on Windows. These envs run in-process, so they
+          # and cannot run on Windows. The remaining envs run in-process, so they
           # exercise real dispatch (and the notebooks) on Windows.
           - os: windows-latest
             python-version: "3.14"

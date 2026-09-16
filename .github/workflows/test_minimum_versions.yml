@@ -36,4 +36,4 @@ jobs:
           extremal-python-dependencies pin-dependencies-to-minimum --inplace
       - name: Test using tox environment
         run: |
-          tox -e py,notebook,doctest
+          tox -e py,notebook,doctest,ragged,ragged-engine
