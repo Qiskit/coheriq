@@ -231,6 +231,59 @@ the explicit call wins. This lets a script pin the engine it depends on
 regardless of the surrounding environment, while still letting users who have
 *not* pinned anything select an engine from the outside without editing code.
 
+.. _faq-threads-and-fork:
+
+How does Coheriq behave with threads and ``fork()``?
+----------------------------------------------------
+
+Coheriq is internally synchronized: the domain registry, each
+:class:`~coheriq.AccelerationDomain`, and each
+:class:`~coheriq.AccelerationEngine` are guarded by locks, and the lock
+acquisition order is fixed (domain before engine) so the package cannot
+deadlock against itself.
+
+Two properties keep this cheap and predictable:
+
+- **Locks are held only for setup bookkeeping.** Every critical section is a
+  short, non-blocking sequence — state checks, a dictionary write, a
+  :func:`type` call. None of them performs I/O or waits on anything. The one
+  potentially slow step in activation, importing an engine module, is
+  deliberately performed *outside* the domain lock.
+- **Steady-state dispatch takes no lock at all.** Each marked callable caches
+  its resolved implementation on first call, so once a domain has been used,
+  calls go straight to the active implementation with no synchronization
+  overhead.
+
+The expected usage pattern follows from the before-first-use rule above:
+constructing a domain, registering candidates and overrides, materializing, and
+activating an engine all happen during program startup, before the application
+spawns threads. Coheriq is safe to *call* from multiple threads, and the locks
+exist so that concurrent setup is not corrupted, but concurrent setup is not the
+case the design optimizes for.
+
+**Forking is supported, with one caveat.** Because activation is process-global
+and one-way, a forked child inherits whichever engine the parent had already
+activated, which is usually exactly what is wanted — activate once in the
+parent, then fork workers. What is *not* supported is calling ``os.fork()``
+concurrently with domain or engine setup in another thread. A lock held at the
+moment of the fork stays held in the child, where the thread that would have
+released it does not exist, so the child can deadlock the first time it touches
+that object. This is a general hazard of mixing threads and ``fork``;
+CPython itself raises a ``DeprecationWarning`` for
+``os.fork()`` called from a non-main thread as of Python 3.12. Since setup is
+expected to be finished before threads are created, ordinary use does not
+encounter it.
+
+**Alternative considered:** making every lock PID-aware — comparing
+``os.getpid()`` on each acquisition and replacing the lock when it changes —
+or reinitializing the locks from an ``os.register_at_fork()`` handler. Neither
+is currently implemented. The exposure they would close is narrow (it requires
+forking *during* setup, from a different thread), and the PID-check variant has
+a subtlety of its own: the check-and-replace step is itself unsynchronized, so
+two threads in a fresh child can install different lock objects and end up not
+mutually excluded. If a concrete need arises, ``register_at_fork`` is the more
+promising of the two, since the child runs it while still single-threaded.
+
 
 API shape
 =========
