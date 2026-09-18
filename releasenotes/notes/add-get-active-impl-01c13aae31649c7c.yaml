@@ -1,0 +1,32 @@
+---
+features:
+  - |
+    Added :func:`~coheriq.get_active_impl`, which returns the implementation
+    that an acceleration candidate currently dispatches to -- the domain's
+    default, or the enabled engine's override if an engine is active.
+
+    In user code a candidate's name refers to a dispatching wrapper rather
+    than the implementation itself.  For a class candidate this hides
+    class-level behavior outright, because the wrapper is a function object
+    standing where the class used to be; ``get_active_impl()`` recovers it::
+
+        from coheriq import get_active_impl
+
+        isinstance(x, get_active_impl(RaggedBatch))
+        get_active_impl(RaggedBatch).make(4)   # a @classmethod
+
+    For a function candidate the wrapper already forwards calls faithfully, so
+    what this adds is the implementation's identity -- which object is actually
+    being called::
+
+        get_active_impl(compute) is engine_compute
+
+    Like calling a candidate, ``get_active_impl()`` resolves and *freezes* the
+    domain's implementation, so no engine can be enabled afterwards.  To reach
+    the original implementation while ignoring any active engine, and without
+    that side effect, use the candidate's ``__wrapped__`` attribute instead.
+  - |
+    Added :exc:`~coheriq.CoheriqTypeError`, raised when an object that is not
+    an acceleration candidate is passed to a Coheriq API that requires one.
+    It inherits from both :exc:`~coheriq.CoheriqUserError` and the built-in
+    :exc:`TypeError`, so it can be caught either way.
