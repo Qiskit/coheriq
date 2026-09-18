@@ -1,0 +1,29 @@
+---
+features:
+  - |
+    Added two functions for inspecting the engine state of an acceleration
+    domain: :func:`~coheriq.available_engines` returns the sorted names of the
+    engines that can be enabled for a domain, and
+    :func:`~coheriq.active_engine` returns the name of the engine currently
+    enabled, or ``None`` if none is.  Both accept an
+    :class:`~coheriq.AccelerationDomain` or the name of one.
+
+    .. code-block:: python
+
+       from coheriq import active_engine, available_engines
+
+       available_engines("mylib")  # ('jax-accelerated', 'mpi')
+       active_engine("mylib")      # None, until an engine is enabled
+
+    ``available_engines()`` reports engines that have already been registered
+    as well as those advertised through the ``coheriq.engines.<domain>`` entry
+    point group but not yet imported, because
+    :func:`~coheriq.enable_engine` accepts either.  Advertised plugins are
+    deliberately not imported in order to answer the question, so a name being
+    listed means that :func:`~coheriq.enable_engine` will attempt it, not that
+    it is guaranteed to load.
+
+    Neither function resolves or freezes the domain's implementation, so an
+    engine can still be enabled afterwards.  This is a deliberate contrast
+    with calling an acceleration candidate: asking which engine is active
+    never commits the domain to an answer.

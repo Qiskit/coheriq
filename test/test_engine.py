@@ -10,15 +10,28 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
+from importlib.metadata import EntryPoint
+
+import coheriq.activation
 import pytest
 from coheriq import (
     AccelerationDomain,
     AccelerationEngine,
     CoheriqDomainError,
+    CoheriqDomainNotFoundError,
     CoheriqEngineError,
     CoheriqEngineNotFoundError,
+    active_engine,
+    available_engines,
     enable_engine,
 )
+
+
+def _fake_entry_points(requested_group, group, names):
+    """Return fake entry points for ``group``, or none for any other group."""
+    if requested_group != group:
+        return ()
+    return tuple(EntryPoint(name=name, value="does.not:exist", group=group) for name in names)
 
 
 def f():
@@ -208,6 +221,148 @@ class TestEngineEnablement:
         monkeypatch.setenv("FOO_ENGINE", "bar")
         enable_engine(domain, "baz")
         assert wrapped_f() == h() != g()
+
+
+class TestAvailableEngines:
+    def test_no_engines(self):
+        domain = AccelerationDomain("foo")
+        domain.materialize()
+        assert available_engines(domain) == ()
+
+    def test_registered_engines_sorted(self):
+        domain = AccelerationDomain("foo")
+        domain.materialize()
+        for name in ("bar", "quux", "baz"):
+            AccelerationEngine("foo", name).materialize()
+        assert available_engines(domain) == ("bar", "baz", "quux")
+
+    def test_accepts_domain_name(self, domain_name):
+        AccelerationEngine(domain_name, "bar").materialize()
+        assert available_engines(domain_name) == ("bar",)
+
+    def test_unknown_domain_name(self):
+        with pytest.raises(CoheriqDomainNotFoundError):
+            available_engines("nonexistent")
+
+    def test_lists_engines_before_materialize(self):
+        # An engine is registered at construction, so it is reportable even
+        # before it has been materialized.
+        domain = AccelerationDomain("foo")
+        domain.materialize()
+        AccelerationEngine("foo", "bar")
+        assert available_engines(domain) == ("bar",)
+
+    def test_includes_unimported_entry_points(self, monkeypatch):
+        domain = AccelerationDomain("foo")
+        domain.materialize()
+        AccelerationEngine("foo", "bar").materialize()
+        monkeypatch.setattr(
+            coheriq.activation,
+            "entry_points",
+            lambda group: _fake_entry_points(group, "coheriq.engines.foo", ["plugin"]),
+        )
+        assert available_engines(domain) == ("bar", "plugin")
+
+    def test_entry_point_does_not_duplicate_registered_engine(self, monkeypatch):
+        domain = AccelerationDomain("foo")
+        domain.materialize()
+        AccelerationEngine("foo", "bar").materialize()
+        monkeypatch.setattr(
+            coheriq.activation,
+            "entry_points",
+            lambda group: _fake_entry_points(group, "coheriq.engines.foo", ["bar"]),
+        )
+        assert available_engines(domain) == ("bar",)
+
+    def test_ignores_other_domains_entry_points(self, monkeypatch):
+        domain = AccelerationDomain("foo")
+        domain.materialize()
+        monkeypatch.setattr(
+            coheriq.activation,
+            "entry_points",
+            lambda group: _fake_entry_points(group, "coheriq.engines.other", ["plugin"]),
+        )
+        assert available_engines(domain) == ()
+
+    def test_does_not_resolve_implementation(self):
+        # Introspection must not freeze the domain: an engine can still be
+        # enabled afterwards.
+        domain = AccelerationDomain("foo")
+        wrapped_f = domain.acceleration_candidate(f)
+        domain.materialize()
+        engine = AccelerationEngine("foo", "bar")
+        engine.override(name="f")(g)
+        engine.materialize()
+        available_engines(domain)
+        enable_engine(domain, "bar")
+        assert wrapped_f() == g()
+
+
+class TestActiveEngine:
+    def test_none_before_resolution(self):
+        domain = AccelerationDomain("foo")
+        domain.materialize()
+        assert active_engine(domain) is None
+
+    def test_none_when_frozen_on_defaults(self):
+        domain = AccelerationDomain("foo")
+        wrapped_f = domain.acceleration_candidate(f)
+        domain.materialize()
+        assert wrapped_f() == f()
+        assert active_engine(domain) is None
+
+    def test_returns_enabled_engine_name(self):
+        domain = AccelerationDomain("foo")
+        domain.acceleration_candidate(f)
+        domain.materialize()
+        engine = AccelerationEngine("foo", "bar")
+        engine.override(name="f")(g)
+        engine.materialize()
+        enable_engine(domain, "bar")
+        assert active_engine(domain) == "bar"
+
+    def test_reports_the_enabled_engine_among_several(self):
+        domain = AccelerationDomain("foo")
+        domain.acceleration_candidate(f)
+        domain.materialize()
+        for name, impl in (("bar", g), ("baz", h)):
+            engine = AccelerationEngine("foo", name)
+            engine.override(name="f")(impl)
+            engine.materialize()
+        enable_engine(domain, "baz")
+        assert active_engine(domain) == "baz"
+
+    def test_accepts_domain_name(self, domain_name):
+        assert active_engine(domain_name) is None
+
+    def test_unknown_domain_name(self):
+        with pytest.raises(CoheriqDomainNotFoundError):
+            active_engine("nonexistent")
+
+    def test_reflects_environment_variable_activation(self, monkeypatch):
+        domain = AccelerationDomain("foo", env_prefix="FOO")
+        wrapped_f = domain.acceleration_candidate(f)
+        domain.materialize()
+        engine = AccelerationEngine("foo", "bar")
+        engine.override(name="f")(g)
+        engine.materialize()
+        monkeypatch.setenv("FOO_ENGINE", "bar")
+        assert wrapped_f() == g()
+        assert active_engine(domain) == "bar"
+
+    def test_does_not_resolve_implementation(self):
+        # Asking which engine is active must not commit the domain to an
+        # answer; an engine can still be enabled afterwards.
+        domain = AccelerationDomain("foo")
+        wrapped_f = domain.acceleration_candidate(f)
+        domain.materialize()
+        engine = AccelerationEngine("foo", "bar")
+        engine.override(name="f")(g)
+        engine.materialize()
+        assert active_engine(domain) is None
+        enable_engine(domain, "bar")
+        assert wrapped_f() == g()
+        assert active_engine(domain) == "bar"
 
 
 class TestEngineBasicInheritance:

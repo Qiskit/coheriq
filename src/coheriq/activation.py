@@ -26,6 +26,18 @@ from .exceptions import (
 )
 
 
+def _resolve_domain(domain: str | AccelerationDomain, /) -> AccelerationDomain:
+    """Return ``domain`` itself, or the registered domain with that name."""
+    if not isinstance(domain, str):
+        return domain
+    try:
+        return _get_domain_by_name(domain)
+    except KeyError:
+        raise CoheriqDomainNotFoundError(
+            f"No domain named '{domain}' has been registered"
+        ) from None
+
+
 def enable_engine(domain: str | AccelerationDomain, engine: str | AccelerationEngine, /) -> None:
     """Activate ``engine`` for ``domain`` so its overrides take priority over the defaults.
 
@@ -33,15 +45,7 @@ def enable_engine(domain: str | AccelerationDomain, engine: str | AccelerationEn
     may be an :class:`.AccelerationEngine` or the name of one.  Enabling an engine
     that is already active is an idempotent no-op.
     """
-    if isinstance(domain, str):
-        try:
-            domain_ = _get_domain_by_name(domain)
-        except KeyError:
-            raise CoheriqDomainNotFoundError(
-                f"No domain named '{domain}' has been registered"
-            ) from None
-    else:
-        domain_ = domain
+    domain_ = _resolve_domain(domain)
 
     # Load a plugin if relevant
     if isinstance(engine, str):
@@ -91,3 +95,57 @@ def _enable_engine_low_level(domain: AccelerationDomain, engine: AccelerationEng
     engine._state = _EngineState.ENABLED
     domain._state = _DomainState.ENGINE_ENABLED
     domain._impl = engine._impl
+
+
+def available_engines(domain: str | AccelerationDomain, /) -> tuple[str, ...]:
+    """Return the names of the engines that can be enabled for ``domain``, sorted.
+
+    ``domain`` may be an :class:`.AccelerationDomain` or the name of one.
+
+    This reports both engines that have already been registered (because their
+    module has been imported) and engines advertised through the
+    ``coheriq.engines.<domain>`` entry point group but not yet imported, since
+    :func:`enable_engine` accepts either.  Advertised plugins are *not* imported
+    in order to answer this question, so a name being listed means that
+    :func:`enable_engine` will attempt it, not that it is guaranteed to load.
+
+    Unlike calling an acceleration candidate, this
+    does not resolve or freeze the implementation: an engine can still be
+    enabled afterwards.
+    """
+    domain_ = _resolve_domain(domain)
+    with domain_._lock:
+        names = set(domain_._engine_registry)
+    # Engines advertised via entry points may not have been imported yet, in
+    # which case they are absent from the registry above but are still valid
+    # arguments to enable_engine(), which loads the plugin on demand.
+    names.update(ep.name for ep in entry_points(group=f"coheriq.engines.{domain_._name}"))
+    return tuple(sorted(names))
+
+
+def active_engine(domain: str | AccelerationDomain, /) -> str | None:
+    """Return the name of the engine currently enabled for ``domain``, else ``None``.
+
+    ``domain`` may be an :class:`.AccelerationDomain` or the name of one.
+
+    ``None`` means no engine is active.  That covers both a domain that has not
+    resolved its implementation yet (one could still be enabled) and a domain
+    already frozen on its defaults, because "no engine is active" is equally
+    true of both.
+
+    Unlike calling an acceleration candidate, this
+    does not resolve or freeze the implementation.  Asking which engine is
+    active never commits the domain to an answer.
+    """
+    domain_ = _resolve_domain(domain)
+    with domain_._lock:
+        if domain_._state != _DomainState.ENGINE_ENABLED:
+            return None
+        for name, engine in domain_._engine_registry.items():
+            if engine._state == _EngineState.ENABLED:
+                return name
+        # Unreachable: ENGINE_ENABLED is only set by _enable_engine_low_level,
+        # which marks the engine ENABLED at the same time, under this lock.
+        raise CoheriqDomainError(  # pragma: no cover
+            f"Domain '{domain_._name}' is in state {domain_._state} but no engine is enabled"
+        )
