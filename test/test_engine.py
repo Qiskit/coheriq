@@ -15,13 +15,14 @@ from importlib.metadata import EntryPoint
 import coheriq.activation
 import pytest
 from coheriq import (
+    REFERENCE,
     AccelerationDomain,
     AccelerationEngine,
     CoheriqDomainError,
     CoheriqDomainNotFoundError,
     CoheriqEngineError,
     CoheriqEngineNotFoundError,
-    active_engine,
+    active_implementation,
     available_engines,
     enable_engine,
 )
@@ -298,18 +299,37 @@ class TestAvailableEngines:
         assert wrapped_f() == g()
 
 
-class TestActiveEngine:
+class TestActiveImplementation:
     def test_none_before_resolution(self):
+        # None means "not decided yet" -- an engine can still be enabled.
         domain = AccelerationDomain("foo")
         domain.materialize()
-        assert active_engine(domain) is None
+        assert active_implementation(domain) is None
 
-    def test_none_when_frozen_on_defaults(self):
+    def test_none_before_materialization(self):
+        domain = AccelerationDomain("foo")
+        assert active_implementation(domain) is None
+
+    def test_reference_when_frozen_on_reference_impl(self):
+        # Resolving to the domain's own implementation is a decision, so it is
+        # reported as REFERENCE rather than sharing None with the undecided state.
         domain = AccelerationDomain("foo")
         wrapped_f = domain.acceleration_candidate(f)
         domain.materialize()
         assert wrapped_f() == f()
-        assert active_engine(domain) is None
+        assert active_implementation(domain) == REFERENCE
+
+    def test_reference_is_distinct_from_none(self):
+        domain = AccelerationDomain("foo")
+        wrapped_f = domain.acceleration_candidate(f)
+        domain.materialize()
+        assert active_implementation(domain) is None
+        assert wrapped_f() == f()
+        assert active_implementation(domain) is not None
+        assert active_implementation(domain) == REFERENCE
+
+    def test_reference_constant_value(self):
+        assert REFERENCE == "reference"
 
     def test_returns_enabled_engine_name(self):
         domain = AccelerationDomain("foo")
@@ -319,7 +339,7 @@ class TestActiveEngine:
         engine.override(name="f")(g)
         engine.materialize()
         enable_engine(domain, "bar")
-        assert active_engine(domain) == "bar"
+        assert active_implementation(domain) == "bar"
 
     def test_reports_the_enabled_engine_among_several(self):
         domain = AccelerationDomain("foo")
@@ -330,14 +350,14 @@ class TestActiveEngine:
             engine.override(name="f")(impl)
             engine.materialize()
         enable_engine(domain, "baz")
-        assert active_engine(domain) == "baz"
+        assert active_implementation(domain) == "baz"
 
     def test_accepts_domain_name(self, domain_name):
-        assert active_engine(domain_name) is None
+        assert active_implementation(domain_name) is None
 
     def test_unknown_domain_name(self):
         with pytest.raises(CoheriqDomainNotFoundError):
-            active_engine("nonexistent")
+            active_implementation("nonexistent")
 
     def test_reflects_environment_variable_activation(self, monkeypatch):
         domain = AccelerationDomain("foo", env_prefix="FOO")
@@ -348,21 +368,70 @@ class TestActiveEngine:
         engine.materialize()
         monkeypatch.setenv("FOO_ENGINE", "bar")
         assert wrapped_f() == g()
-        assert active_engine(domain) == "bar"
+        assert active_implementation(domain) == "bar"
+
+    def test_reference_when_env_var_is_empty(self, monkeypatch):
+        domain = AccelerationDomain("foo", env_prefix="FOO")
+        wrapped_f = domain.acceleration_candidate(f)
+        domain.materialize()
+        monkeypatch.setenv("FOO_ENGINE", "")
+        assert wrapped_f() == f()
+        assert active_implementation(domain) == REFERENCE
 
     def test_does_not_resolve_implementation(self):
-        # Asking which engine is active must not commit the domain to an
-        # answer; an engine can still be enabled afterwards.
+        # Asking what is active must not commit the domain to an answer; an
+        # engine can still be enabled afterwards.
         domain = AccelerationDomain("foo")
         wrapped_f = domain.acceleration_candidate(f)
         domain.materialize()
         engine = AccelerationEngine("foo", "bar")
         engine.override(name="f")(g)
         engine.materialize()
-        assert active_engine(domain) is None
+        assert active_implementation(domain) is None
         enable_engine(domain, "bar")
         assert wrapped_f() == g()
-        assert active_engine(domain) == "bar"
+        assert active_implementation(domain) == "bar"
+
+    def test_repeated_calls_do_not_freeze(self):
+        domain = AccelerationDomain("foo")
+        wrapped_f = domain.acceleration_candidate(f)
+        domain.materialize()
+        engine = AccelerationEngine("foo", "bar")
+        engine.override(name="f")(g)
+        engine.materialize()
+        for _ in range(3):
+            assert active_implementation(domain) is None
+        enable_engine(domain, "bar")
+        assert wrapped_f() == g()
+
+
+class TestReservedEngineNames:
+    def test_reference_rejected_as_engine_name(self):
+        AccelerationDomain("foo").materialize()
+        with pytest.raises(CoheriqEngineError, match="reserved"):
+            AccelerationEngine("foo", REFERENCE)
+
+    def test_reference_string_rejected_as_engine_name(self):
+        AccelerationDomain("foo").materialize()
+        with pytest.raises(CoheriqEngineError, match="reserved"):
+            AccelerationEngine("foo", "reference")
+
+    def test_reserved_name_check_is_case_sensitive(self):
+        # Only the exact reserved spelling is refused; matching is exact, as it
+        # is everywhere else a name is looked up.
+        domain = AccelerationDomain("foo")
+        domain.acceleration_candidate(f)
+        domain.materialize()
+        engine = AccelerationEngine("foo", "Reference")
+        engine.override(name="f")(g)
+        engine.materialize()
+        enable_engine(domain, "Reference")
+        assert active_implementation(domain) == "Reference"
+
+    def test_reserved_name_not_reported_as_available(self):
+        domain = AccelerationDomain("foo")
+        domain.materialize()
+        assert REFERENCE not in available_engines(domain)
 
 
 class TestEngineBasicInheritance:

@@ -4,16 +4,16 @@ features:
     Added two functions for inspecting the engine state of an acceleration
     domain: :func:`~coheriq.available_engines` returns the sorted names of the
     engines that can be enabled for a domain, and
-    :func:`~coheriq.active_engine` returns the name of the engine currently
-    enabled, or ``None`` if none is.  Both accept an
+    :func:`~coheriq.active_implementation` returns the name of the
+    implementation the domain has resolved to.  Both accept an
     :class:`~coheriq.AccelerationDomain` or the name of one.
 
     .. code-block:: python
 
-       from coheriq import active_engine, available_engines
+       from coheriq import active_implementation, available_engines
 
-       available_engines("mylib")  # ('jax-accelerated', 'mpi')
-       active_engine("mylib")      # None, until an engine is enabled
+       available_engines("mylib")     # ('jax-accelerated', 'mpi')
+       active_implementation("mylib") # None, until an implementation is resolved
 
     ``available_engines()`` reports engines that have already been registered
     as well as those advertised through the ``coheriq.engines.<domain>`` entry
@@ -23,7 +23,20 @@ features:
     listed means that :func:`~coheriq.enable_engine` will attempt it, not that
     it is guaranteed to load.
 
+    ``active_implementation()`` has three possible results.  It returns ``None``
+    while the domain has not resolved an implementation yet, meaning an engine
+    can still be enabled; :data:`~coheriq.REFERENCE` (the string
+    ``"reference"``) once the domain has resolved to its own reference
+    implementation; and otherwise the name of the enabled engine.  ``None``
+    therefore means "not decided yet" and never "decided on no engine", so a
+    caller can distinguish the window in which it can still act from the state
+    in which the decision has already been made.
+
+    Because ``"reference"`` is a possible result, it is not available as an
+    engine name: :class:`~coheriq.AccelerationEngine` now rejects it.
+
     Neither function resolves or freezes the domain's implementation, so an
     engine can still be enabled afterwards.  This is a deliberate contrast
-    with calling an acceleration candidate: asking which engine is active
-    never commits the domain to an answer.
+    with calling an acceleration candidate: asking what is active never
+    commits the domain to an answer, so a ``None`` result does not become
+    stale merely by being observed.

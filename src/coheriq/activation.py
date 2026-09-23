@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from importlib.metadata import entry_points
 
-from .domain import AccelerationDomain, _DomainState, _get_domain_by_name
+from .domain import REFERENCE, AccelerationDomain, _DomainState, _get_domain_by_name
 from .engine import AccelerationEngine, _EngineState
 from .exceptions import (
     CoheriqDomainError,
@@ -123,24 +123,35 @@ def available_engines(domain: str | AccelerationDomain, /) -> tuple[str, ...]:
     return tuple(sorted(names))
 
 
-def active_engine(domain: str | AccelerationDomain, /) -> str | None:
-    """Return the name of the engine currently enabled for ``domain``, else ``None``.
+def active_implementation(domain: str | AccelerationDomain, /) -> str | None:
+    """Return the name of the implementation ``domain`` has resolved to, or ``None``.
 
     ``domain`` may be an :class:`.AccelerationDomain` or the name of one.
 
-    ``None`` means no engine is active.  That covers both a domain that has not
-    resolved its implementation yet (one could still be enabled) and a domain
-    already frozen on its defaults, because "no engine is active" is equally
-    true of both.
+    There are three possible results:
 
-    Unlike calling an acceleration candidate, this
-    does not resolve or freeze the implementation.  Asking which engine is
-    active never commits the domain to an answer.
+    * ``None`` -- the domain has not resolved an implementation yet, so an engine
+      can still be enabled.
+    * :data:`~coheriq.REFERENCE` (the string ``"reference"``) -- the domain has
+      resolved to its own reference implementation.  No engine is active, and it
+      is too late to enable one.
+    * any other string -- the name of the engine that is active.
+
+    ``None`` therefore means "not decided yet", and never "decided on no engine";
+    the latter is reported as :data:`~coheriq.REFERENCE`.  Because
+    ``"reference"`` is a possible result, it cannot also be an engine name, and
+    :class:`.AccelerationEngine` rejects it.
+
+    Unlike calling an acceleration candidate, this does not resolve or freeze the
+    implementation.  Asking what is active never commits the domain to an answer,
+    so a ``None`` result does not become stale merely by being observed.
     """
     domain_ = _resolve_domain(domain)
     with domain_._lock:
-        if domain_._state != _DomainState.ENGINE_ENABLED:
+        if domain_._state in (_DomainState.CONSTRUCTING, _DomainState.MATERIALIZED):
             return None
+        if domain_._state == _DomainState.CALLED_WITHOUT_ENGINE:
+            return REFERENCE
         for name, engine in domain_._engine_registry.items():
             if engine._state == _EngineState.ENABLED:
                 return name
