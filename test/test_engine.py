@@ -10,6 +10,8 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
+from unittest import mock
+
 import pytest
 from coheriq import (
     AccelerationDomain,
@@ -17,6 +19,7 @@ from coheriq import (
     CoheriqDomainError,
     CoheriqEngineError,
     CoheriqEngineNotFoundError,
+    activation,
     enable_engine,
 )
 
@@ -208,6 +211,37 @@ class TestEngineEnablement:
         monkeypatch.setenv("FOO_ENGINE", "bar")
         enable_engine(domain, "baz")
         assert wrapped_f() == h() != g()
+
+    def test_enable_engine_holds_both_locks(self):
+        # ``_enable_engine_low_level`` mutates state on both the domain and the
+        # engine, so both locks must be held while it runs.  Observe this from
+        # inside the critical section by patching it.
+        domain = AccelerationDomain("foo")
+        domain.acceleration_candidate(f)
+        domain.materialize()
+        engine = AccelerationEngine("foo", "bar")
+        engine.override(name="f")(g)
+        engine.materialize()
+
+        observed = {}
+        original = activation._enable_engine_low_level
+
+        def held(lock):
+            # ``acquire(blocking=False)`` fails iff the lock is already held.
+            if lock.acquire(blocking=False):
+                lock.release()
+                return False
+            return True
+
+        def spy(domain_, engine_):
+            observed["domain"] = held(domain_._lock)
+            observed["engine"] = held(engine_._lock)
+            return original(domain_, engine_)
+
+        with mock.patch.object(activation, "_enable_engine_low_level", spy):
+            enable_engine(domain, "bar")
+
+        assert observed == {"domain": True, "engine": True}
 
 
 class TestEngineBasicInheritance:

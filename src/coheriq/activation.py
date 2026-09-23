@@ -68,14 +68,16 @@ def enable_engine(domain: str | AccelerationDomain, engine: str | AccelerationEn
         else:
             engine_ = engine
 
-        _enable_engine_low_level(domain_, engine_)
+        with engine_._lock:
+            _enable_engine_low_level(domain_, engine_)
 
 
 def _enable_engine_low_level(domain: AccelerationDomain, engine: AccelerationEngine) -> None:
     """Enable engine for domain.
 
     This assumes the locks for ``domain`` and ``engine`` have already been
-    acquired (in that order).  The user-facing function is :func:`enable_engine`.
+    acquired (in that order), as it mutates state on both.  The user-facing
+    function is :func:`enable_engine`.
     """
     if engine._state == _EngineState.ENABLED:
         # This engine is already enabled.  Enabling the same engine
