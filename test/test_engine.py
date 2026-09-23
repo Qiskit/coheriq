@@ -121,6 +121,16 @@ class TestEngineConstruction:
         with pytest.raises(CoheriqEngineError):
             AccelerationEngine(domain_name + "2", "bar")
 
+    def test_construct_before_domain_is_materialized(self):
+        # An engine inherits from its domain's class and validates overrides
+        # against the domain's candidate set, so the domain must be materialized
+        # first.  Previously this was unchecked and surfaced much later as a bare
+        # AttributeError from materialize().
+        domain = AccelerationDomain("foo")
+        domain.acceleration_candidate(f)
+        with pytest.raises(CoheriqEngineError, match="must be materialized"):
+            AccelerationEngine("foo", "bar")
+
     def test_no_override_before_enabled(self):
         domain = AccelerationDomain("foo")
         wrapped_f = domain.acceleration_candidate(f)
