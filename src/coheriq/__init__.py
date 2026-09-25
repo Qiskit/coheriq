@@ -15,7 +15,7 @@
 from __future__ import annotations
 
 from .activation import enable_engine
-from .domain import AccelerationDomain, get_active_impl
+from .domain import AccelerationDomain, resolve_impl
 from .engine import AccelerationEngine
 from .exceptions import (
     CoheriqDomainError,
@@ -42,5 +42,5 @@ __all__ = [
     "CoheriqTypeError",
     "CoheriqUserError",
     "enable_engine",
-    "get_active_impl",
+    "resolve_impl",
 ]

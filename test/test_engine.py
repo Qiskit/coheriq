@@ -20,7 +20,7 @@ from coheriq import (
     CoheriqTypeError,
     CoheriqUserError,
     enable_engine,
-    get_active_impl,
+    resolve_impl,
 )
 
 
@@ -225,25 +225,25 @@ class TestEngineEnablement:
         assert wrapped_f() == h() != g()
 
 
-class TestGetActiveImpl:
+class TestResolveImpl:
     def test_default_returns_the_class(self):
         domain = AccelerationDomain("foo")
         widget = domain.acceleration_candidate(DefaultWidget)
         domain.materialize()
-        assert get_active_impl(widget) is DefaultWidget
+        assert resolve_impl(widget) is DefaultWidget
 
     def test_default_enables_isinstance(self):
         domain = AccelerationDomain("foo")
         widget = domain.acceleration_candidate(DefaultWidget)
         domain.materialize()
         instance = widget()
-        assert isinstance(instance, get_active_impl(widget))
+        assert isinstance(instance, resolve_impl(widget))
 
     def test_default_enables_new(self):
         domain = AccelerationDomain("foo")
         widget = domain.acceleration_candidate(DefaultWidget)
         domain.materialize()
-        resolved = get_active_impl(widget)
+        resolved = resolve_impl(widget)
         instance = resolved.__new__(resolved)
         assert isinstance(instance, DefaultWidget)
 
@@ -255,20 +255,19 @@ class TestGetActiveImpl:
         engine.override(name="DefaultWidget")(EngineWidget)
         engine.materialize()
         enable_engine(domain, "bar")
-        assert get_active_impl(widget) is EngineWidget
+        assert resolve_impl(widget) is EngineWidget
         assert isinstance(widget(), EngineWidget)
 
     def test_freezes_implementation(self):
-        # Resolving the implementation (here, via get_active_impl) is what calling
-        # a candidate would do: it locks in the implementation, so an engine can no
-        # longer be enabled afterwards.
+        # Resolving is what calling a candidate would do: it locks in the
+        # implementation, so an engine can no longer be enabled afterwards.
         domain = AccelerationDomain("foo")
         widget = domain.acceleration_candidate(DefaultWidget)
         domain.materialize()
         engine = AccelerationEngine("foo", "bar")
         engine.override(name="DefaultWidget")(EngineWidget)
         engine.materialize()
-        get_active_impl(widget)
+        resolve_impl(widget)
         with pytest.raises(CoheriqDomainError):
             enable_engine(domain, "bar")
 
@@ -283,26 +282,26 @@ class TestGetActiveImpl:
         engine.materialize()
         enable_engine(domain, "bar")
         assert widget.__wrapped__ is DefaultWidget
-        assert get_active_impl(widget) is EngineWidget
+        assert resolve_impl(widget) is EngineWidget
 
     def test_rejects_non_candidate(self):
         with pytest.raises(CoheriqTypeError):
-            get_active_impl(int)
+            resolve_impl(int)
 
     def test_error_is_both_user_error_and_type_error(self):
         with pytest.raises(CoheriqUserError):
-            get_active_impl(int)
+            resolve_impl(int)
         with pytest.raises(TypeError):
-            get_active_impl(int)
+            resolve_impl(int)
 
     def test_function_candidate_returns_the_default_function(self):
         # A function candidate's wrapper forwards calls correctly, so what
-        # get_active_impl adds is the implementation's identity: which object is
+        # resolve_impl adds is the implementation's identity: which object is
         # actually being called.
         domain = AccelerationDomain("foo")
         wrapped_f = domain.acceleration_candidate(f)
         domain.materialize()
-        assert get_active_impl(wrapped_f) is f
+        assert resolve_impl(wrapped_f) is f
 
     def test_function_candidate_reflects_active_engine(self):
         domain = AccelerationDomain("foo")
@@ -312,7 +311,7 @@ class TestGetActiveImpl:
         engine.override(name="f")(g)
         engine.materialize()
         enable_engine(domain, "bar")
-        assert get_active_impl(wrapped_f) is g
+        assert resolve_impl(wrapped_f) is g
 
     def test_function_candidate_identity_is_what_is_called(self):
         # The returned object is the one the wrapper dispatches to, so calling it
@@ -324,7 +323,7 @@ class TestGetActiveImpl:
         engine.override(name="f")(g)
         engine.materialize()
         enable_engine(domain, "bar")
-        impl = get_active_impl(wrapped_f)
+        impl = resolve_impl(wrapped_f)
         assert impl() == wrapped_f() == g()
 
     def test_function_candidate_freezes_implementation(self):
@@ -334,7 +333,7 @@ class TestGetActiveImpl:
         engine = AccelerationEngine("foo", "bar")
         engine.override(name="f")(g)
         engine.materialize()
-        get_active_impl(wrapped_f)
+        resolve_impl(wrapped_f)
         with pytest.raises(CoheriqDomainError):
             enable_engine(domain, "bar")
 

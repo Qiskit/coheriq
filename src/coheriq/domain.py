@@ -139,9 +139,9 @@ class AccelerationDomain:
 
                 return f_impl(*args, **kwargs)
 
-            def get_active_impl_hook():
+            def resolve_impl_hook():
                 # The resolved implementation this candidate dispatches to.  Reached
-                # by the public coheriq.get_active_impl() function; see its docstring.
+                # by the public coheriq.resolve_impl() function; see its docstring.
                 self._ensure_realized_impl()
                 return getattr(self._impl, name)
 
@@ -150,11 +150,11 @@ class AccelerationDomain:
                     raise CoheriqDomainError(
                         "Cannot mark a function after the domain is materialized"
                     )
-                # Every candidate gets the accessor.  For a class it reaches
+                # Every candidate gets the hook.  For a class it reaches
                 # class-level behavior (isinstance, __new__, subclassing) that the
                 # dispatching wrapper hides outright; for a function it reaches the
                 # object's identity, which calling through the wrapper never reveals.
-                wrapper._coheriq_get_active_impl = get_active_impl_hook  # type: ignore[attr-defined]
+                wrapper._coheriq_resolve_impl = resolve_impl_hook  # type: ignore[attr-defined]
                 if TYPE_CHECKING and isclass(f):
                     # Usual use of this decorator replaces the class with a
                     # callable that wraps its constructor.  When type checking, it
@@ -183,7 +183,7 @@ class AccelerationDomain:
             self._state = _DomainState.MATERIALIZED
 
 
-def get_active_impl(candidate: _F) -> _F:
+def resolve_impl(candidate: _F) -> _F:
     """Return the resolved implementation a Coheriq candidate dispatches to.
 
     ``candidate`` is a class or function marked with
@@ -195,13 +195,13 @@ def get_active_impl(candidate: _F) -> _F:
     For a class candidate this recovers class-level behavior that the wrapper hides
     outright, since the wrapper is a function object where the class name used to be::
 
-        isinstance(x, coheriq.get_active_impl(RaggedBatch))
-        coheriq.get_active_impl(RaggedBatch).__new__(...)
+        isinstance(x, coheriq.resolve_impl(RaggedBatch))
+        coheriq.resolve_impl(RaggedBatch).__new__(...)
 
     For a function candidate, calling the wrapper already forwards correctly, so what
     this adds is the implementation's *identity* -- which object is being called::
 
-        coheriq.get_active_impl(compute) is engine_compute
+        coheriq.resolve_impl(compute) is engine_compute
 
     Like calling the candidate, this resolves and *freezes* the implementation:
     afterwards no engine can be enabled.  For the original, ignoring any engine, use
@@ -216,7 +216,7 @@ def get_active_impl(candidate: _F) -> _F:
     Raises:
         CoheriqTypeError: if ``candidate`` is not a Coheriq acceleration candidate.
     """
-    hook = getattr(candidate, "_coheriq_get_active_impl", None)
+    hook = getattr(candidate, "_coheriq_resolve_impl", None)
     if hook is None:
         raise CoheriqTypeError(f"{candidate!r} is not a coheriq acceleration candidate")
     return hook()  # type: ignore[no-any-return]
