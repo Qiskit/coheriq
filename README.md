@@ -6,9 +6,6 @@ Coheriq is a dispatch decorator framework. A library marks certain functions and
 
 This lets acceleration be **optional** (users who can't or don't want the fast path keep the default, and pay none of its install cost), **decentralized** (a GPU/MPI/HPC engine ships as its own package, maintained by a different team), and **drop-in** (no call site changes).
 
-> [!NOTE]
-> This repository is under active development and the code here should not be considered stable.
-
 ## The mental model: three parties
 
 **1. The library (the "domain")** marks what *could* be accelerated and provides the default implementation:
@@ -62,6 +59,24 @@ and macOS, operating systems which support isolating each test in its own
 process with `pytest --forked` (this relies on `os.fork()`). Windows is tested
 in a more limited way, running the portions of the suite that do not require
 `--forked`, until a fork-free way to run the rest is worked out.
+
+## Stability policy
+
+This library follows [semantic versioning 2.0.0](https://semver.org/). Semver allows a project in the `0.y.z` series to change anything at any time; Coheriq makes a stronger promise than that, so downstream **consumers** — the domains and engines that build against Coheriq's decorators — can depend on a version range rather than pinning an exact patchlevel or minor release.
+
+Until the major version becomes non-zero:
+
+- **Patchlevel** releases (`0.4.1` → `0.4.2`) contain bug fixes only. No new features.
+- **Minor** releases (`0.4.2` → `0.5.0`) may add features, and do not break existing consumers. The end-user interface for enabling an engine may change in a minor release.
+- A **breaking change** to the interface used by consumers advances the minor version to the next multiple of ten. If the current release is `0.4.2` and a breaking change lands on `main`, the next release is `0.10.0`.
+
+Downstream packages should therefore depend on Coheriq as:
+
+```
+coheriq>=0.4,<0.10
+```
+
+That picks up bug fixes and new features automatically, and stops before the release that would require attention. Without the multiple-of-ten rule, a version number could not distinguish a release that adds features from one that breaks you, leaving `<0.5` as the only safe cap and a pin bump due on every feature release.
 
 ## Documentation
 

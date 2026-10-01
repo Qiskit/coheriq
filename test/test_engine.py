@@ -11,8 +11,8 @@
 # that they have been altered from the originals.
 
 from importlib.metadata import EntryPoint
+from unittest import mock
 
-import coheriq.activation
 import pytest
 from coheriq import (
     REFERENCE,
@@ -22,6 +22,7 @@ from coheriq import (
     CoheriqDomainNotFoundError,
     CoheriqEngineError,
     CoheriqEngineNotFoundError,
+    activation,
     active_implementation,
     available_engines,
     enable_engine,
@@ -132,6 +133,16 @@ class TestEngineConstruction:
         with pytest.raises(CoheriqEngineError):
             AccelerationEngine(domain_name + "2", "bar")
 
+    def test_construct_before_domain_is_materialized(self):
+        # An engine inherits from its domain's class and validates overrides
+        # against the domain's candidate set, so the domain must be materialized
+        # first.  Previously this was unchecked and surfaced much later as a bare
+        # AttributeError from materialize().
+        domain = AccelerationDomain("foo")
+        domain.acceleration_candidate(f)
+        with pytest.raises(CoheriqEngineError, match="must be materialized"):
+            AccelerationEngine("foo", "bar")
+
     def test_no_override_before_enabled(self):
         domain = AccelerationDomain("foo")
         wrapped_f = domain.acceleration_candidate(f)
@@ -223,6 +234,37 @@ class TestEngineEnablement:
         enable_engine(domain, "baz")
         assert wrapped_f() == h() != g()
 
+    def test_enable_engine_holds_both_locks(self):
+        # ``_enable_engine_low_level`` mutates state on both the domain and the
+        # engine, so both locks must be held while it runs.  Observe this from
+        # inside the critical section by patching it.
+        domain = AccelerationDomain("foo")
+        domain.acceleration_candidate(f)
+        domain.materialize()
+        engine = AccelerationEngine("foo", "bar")
+        engine.override(name="f")(g)
+        engine.materialize()
+
+        observed = {}
+        original = activation._enable_engine_low_level
+
+        def held(lock):
+            # ``acquire(blocking=False)`` fails iff the lock is already held.
+            if lock.acquire(blocking=False):
+                lock.release()
+                return False
+            return True
+
+        def spy(domain_, engine_):
+            observed["domain"] = held(domain_._lock)
+            observed["engine"] = held(engine_._lock)
+            return original(domain_, engine_)
+
+        with mock.patch.object(activation, "_enable_engine_low_level", spy):
+            enable_engine(domain, "bar")
+
+        assert observed == {"domain": True, "engine": True}
+
 
 class TestAvailableEngines:
     def test_no_engines(self):
@@ -258,7 +300,7 @@ class TestAvailableEngines:
         domain.materialize()
         AccelerationEngine("foo", "bar").materialize()
         monkeypatch.setattr(
-            coheriq.activation,
+            activation,
             "entry_points",
             lambda group: _fake_entry_points(group, "coheriq.engines.foo", ["plugin"]),
         )
@@ -269,7 +311,7 @@ class TestAvailableEngines:
         domain.materialize()
         AccelerationEngine("foo", "bar").materialize()
         monkeypatch.setattr(
-            coheriq.activation,
+            activation,
             "entry_points",
             lambda group: _fake_entry_points(group, "coheriq.engines.foo", ["bar"]),
         )
@@ -279,7 +321,7 @@ class TestAvailableEngines:
         domain = AccelerationDomain("foo")
         domain.materialize()
         monkeypatch.setattr(
-            coheriq.activation,
+            activation,
             "entry_points",
             lambda group: _fake_entry_points(group, "coheriq.engines.other", ["plugin"]),
         )
