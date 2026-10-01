@@ -32,6 +32,20 @@ if TYPE_CHECKING:
 _domain_registry_lock = Lock()
 _domain_registry: dict[str, AccelerationDomain] = {}
 
+REFERENCE = "reference"
+"""The name reported for a domain's own reference implementation.
+
+:func:`~coheriq.active_implementation` returns this when a domain has resolved
+to the implementation the domain itself provides, rather than to any engine.
+It is therefore not a usable engine name: :class:`~coheriq.AccelerationEngine`
+rejects it.
+"""
+
+# Names an engine may not use, because active_implementation() reports them to
+# mean something other than an engine.  Adding to this set is a compatibility
+# break for any engine already using the name, so it should stay small.
+_RESERVED_ENGINE_NAMES = frozenset({REFERENCE})
+
 
 def _get_domain_by_name(name: str) -> AccelerationDomain:
     """Return the domain with the given name; raises KeyError if not found."""
