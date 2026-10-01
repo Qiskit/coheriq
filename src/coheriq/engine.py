@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from typing_extensions import Self
 
-from .domain import _get_domain_by_name
+from .domain import _DomainState, _get_domain_by_name
 from .exceptions import (
     CoheriqEngineError,
     CoheriqEngineInheritanceError,
@@ -61,6 +61,14 @@ class AccelerationEngine:
         self._lock = Lock()
         self._impl: type
         with domain._lock:
+            # An engine inherits from its domain's class and validates its
+            # overrides against the domain's candidate set, so the domain must
+            # have closed that set before an engine can be built against it.
+            if domain._state == _DomainState.CONSTRUCTING:
+                raise CoheriqEngineError(
+                    f"Domain '{domain._name}' must be materialized before an engine "
+                    f"can be created for it"
+                )
             # Resolve bases
             resolved: list[AccelerationEngine] = []
             for base in bases:
@@ -133,6 +141,10 @@ class AccelerationEngine:
 
         This will lock in this engine's overrides, composing them with its bases and the domain.
         """
+        # These reads are intentionally unlocked.  self._bases is assigned once,
+        # in __init__, and never mutated; each base's _state and _impl are
+        # likewise set once by its own materialize() and never change
+        # afterwards.  So there is no mutation here to synchronize against.
         for base in self._bases:
             if base._state != _EngineState.MATERIALIZED:
                 raise CoheriqEngineError(
@@ -142,6 +154,10 @@ class AccelerationEngine:
                 )
         bases = tuple(base._impl for base in self._bases)
 
+        # Reading ``self._domain._base`` needs no domain lock: it is assigned
+        # exactly once, when the domain materializes, and never reassigned.
+        # __init__ guarantees the domain was already materialized before this
+        # engine existed, so that write happens-before any read here.
         with self._lock:
             if self._state != _EngineState.CONSTRUCTING:
                 raise CoheriqEngineError(
