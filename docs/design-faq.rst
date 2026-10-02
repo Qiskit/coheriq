@@ -18,7 +18,7 @@ Why substitute whole coherent units instead of overriding individual functions?
 --------------------------------------------------------------------------------
 
 A tempting alternative is to let an engine replace acceleration candidates one
-function at a time, mixing accelerated and default implementations freely. Coheriq
+function at a time, mixing accelerated and reference implementations freely. Coheriq
 deliberately does not work that way: an engine substitutes a **coherent unit** of
 behavior. What you are really selecting is a *policy* for how a body of work is
 carried out, not a patch to a single mechanism. Several things follow from that
@@ -29,8 +29,8 @@ distinction:
   hidden state. Overriding just the function replaces one leaf while the tree of
   assumptions around it stays implicit and unchanged. Substituting the whole unit
   replaces the *bundle of invariants*, not merely a line of code.
-- **Atomicity — no half-accelerated limbo.** If some calls dispatched to the
-  engine and others to the default, a program could end up in a
+- **Atomicity — no half-accelerated limbo.** If some calls dispatched to an
+  engine and others to the reference implementation, a program could end up in a
   *half-accelerated limbo state*: mixing representations, hopping needlessly
   between host and device, or producing subtly wrong results. Whole-unit
   substitution is consistent by construction — either the engine's world is in
@@ -94,7 +94,7 @@ implementation is simpler and keeps the real callable intact.
 Why use ``type()`` and real inheritance under the hood?
 -------------------------------------------------------
 
-When a domain materializes, Coheriq builds a class from its default
+When a domain materializes, Coheriq builds a class from its reference
 implementations using :func:`type`. Each engine builds its own class that
 inherits from that domain class. This is a deliberate choice: because engines
 are ordinary Python classes, **composing engines is just Python multiple
@@ -177,8 +177,8 @@ use, the choice of implementation is locked in.
 The reason is data consistency. An engine may replace not only functions but
 also the *data structures* a library produces and consumes, choosing a
 representation better suited to acceleration. If a program built some objects
-with the default representation and then switched engines, later code could
-receive a mix of default-native and accelerated representations — an
+with the reference representation and then switched engines, later code could
+receive a mix of reference and accelerated representations — an
 inconsistent state that is difficult to reason about and easy to get wrong.
 Requiring activation up front makes the data layout coherent for the entire
 lifetime of the process.
@@ -186,13 +186,20 @@ lifetime of the process.
 Why is activation one-way, with no disable and no reset?
 --------------------------------------------------------
 
-Once an engine is enabled, it cannot be swapped for a different one or turned
-off, and there is no reset in the public API. This follows from the
+Once an implementation is active, it cannot be swapped for a different one or
+turned off, and there is no reset in the public API. This follows from the
 before-first-use rule: allowing a later switch would reintroduce exactly the
 inconsistent-state failure mode that rule exists to prevent. One-way activation
 eliminates a whole category of "how did I get into this state?" bugs and does
 not meaningfully restrict what a user can accomplish — to use a different
 engine, start a new process.
+
+Note that "one-way" governs transitions, not which engine is chosen.  Selecting
+the reference implementation explicitly (see :ref:`faq-enable-reference`) is a
+transition *forward* into a settled state, and rules the other engines out in
+exactly the way enabling any engine rules out the rest.  What the contract
+forbids is leaving a settled state once reached, so pinning the reference
+implementation is permitted while disabling an active engine is not.
 
 .. _faq-process-global:
 
@@ -382,6 +389,65 @@ implementation — does not warrant.
 open ecosystem: an author naturally says "I wrote an engine for CUDA," and the
 sentence needs no explanation. ``AccelerationEngine`` is the explicit form, and
 it pairs symmetrically with ``AccelerationDomain``.
+
+Is the reference implementation an engine?
+------------------------------------------
+
+Yes, and the machinery has always treated it that way. When a domain
+materializes, Coheriq builds a class from its candidates; when an engine
+materializes, it builds a class that *inherits from that one*. The reference
+implementation is therefore the root of the engine inheritance graph rather than
+a separate kind of thing beside it. Dispatch does not branch on which case
+applies: resolving a call reads an attribute off whichever class is active.
+
+The word "engine" in this documentation describes **what is substituted** -- a
+coherent unit of behavior, state, and invariants, chosen as a whole -- and not
+who wrote it or how fast it is. The reference implementation satisfies that
+description. It is the unit the domain itself supplies, and the one every other
+engine is defined relative to.
+
+Calling it the *reference* implementation rather than the *default* one is
+deliberate, and follows established use in high-performance computing, where a
+reference BLAS or LAPACK is the straightforward implementation that defines
+correct behavior and against which accelerated ones are checked. "Default"
+describes only what happens when nobody chooses; "reference" describes what the
+implementation *is*, which remains true even when it is selected deliberately.
+
+Two consequences follow:
+
+- The reference implementation has a name, :data:`~coheriq.REFERENCE` (the
+  string ``"reference"``).  :func:`~coheriq.available_engines` lists it and
+  :func:`~coheriq.active_engine` reports it, like any other engine.
+- Selecting it can be an explicit act rather than only the result of declining
+  to choose. See :ref:`the following entry <faq-enable-reference>` for why that
+  distinction matters.
+
+.. _faq-enable-reference:
+
+Why can the reference implementation be enabled explicitly?
+-----------------------------------------------------------
+
+Declining to choose an engine and choosing the reference implementation look the
+same from the outside -- both end with the reference implementation active --
+but they are not the same instruction, because an environment variable can
+override the first and must not override the second.
+
+A user who sets no environment variable and enables nothing gets the reference
+implementation by omission. A user whose environment has ``MYLIB_ENGINE`` set
+gets whatever that names, which is the point of the variable. Someone who needs
+the reference implementation *regardless* of the surrounding environment -- a
+researcher comparing against it, someone debugging a suspected engine bug, a
+test pinning known-good behavior -- has to be able to say so, and silence cannot
+say it.
+
+``enable_engine(domain, coheriq.REFERENCE)`` is that statement, and it follows
+the same precedence rule as any other explicit activation: the explicit call
+wins over the environment variable.
+
+This does not weaken the one-way contract. Pinning the reference implementation
+is a forward transition that rules out the other engines, exactly as enabling
+any engine rules out the rest; it is not a reset, and it cannot undo an engine
+that is already active.
 
 Why ``Domain``?
 ---------------
