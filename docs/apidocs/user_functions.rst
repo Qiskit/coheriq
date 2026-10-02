@@ -6,6 +6,6 @@ User functions
 
 .. autofunction:: coheriq.available_engines
 
-.. autofunction:: coheriq.active_implementation
+.. autofunction:: coheriq.active_engine
 
 .. autodata:: coheriq.REFERENCE

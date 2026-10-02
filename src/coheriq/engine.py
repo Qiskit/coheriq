@@ -55,7 +55,7 @@ class AccelerationEngine:
             raise CoheriqEngineError("engine name cannot be empty")
         if engine_name in _RESERVED_ENGINE_NAMES:
             raise CoheriqEngineError(
-                f"engine name '{engine_name}' is reserved and cannot be used for an engine"
+                f"engine name '{engine_name}' is reserved for the domain's own use"
             )
         self._state = _EngineState.CONSTRUCTING
         self._domain_name = domain_name

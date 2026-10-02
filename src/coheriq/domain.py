@@ -33,17 +33,21 @@ _domain_registry_lock = Lock()
 _domain_registry: dict[str, AccelerationDomain] = {}
 
 REFERENCE = "reference"
-"""The name reported for a domain's own reference implementation.
+"""The name of a domain's own reference implementation.
 
-:func:`~coheriq.active_implementation` returns this when a domain has resolved
-to the implementation the domain itself provides, rather than to any engine.
-It is therefore not a usable engine name: :class:`~coheriq.AccelerationEngine`
-rejects it.
+Every domain has this engine: it is the one built from the implementations the
+domain itself declares, and the one in effect until another is enabled.  Pass it
+to :func:`~coheriq.enable_engine` to select it explicitly, and
+:func:`~coheriq.active_engine` reports it when it is active.
+
+It is listed by :func:`~coheriq.available_engines` like any other engine, so it
+is a name the domain owns: :class:`~coheriq.AccelerationEngine` cannot be
+constructed with it.
 """
 
-# Names an engine may not use, because active_implementation() reports them to
-# mean something other than an engine.  Adding to this set is a compatibility
-# break for any engine already using the name, so it should stay small.
+# Engine names a domain owns, which a third-party engine therefore cannot claim.
+# Adding to this set is a compatibility break for any engine already using the
+# name, so it should stay small.
 _RESERVED_ENGINE_NAMES = frozenset({REFERENCE})
 
 
