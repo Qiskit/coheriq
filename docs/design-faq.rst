@@ -285,6 +285,73 @@ mutually excluded. If a concrete need arises, ``register_at_fork`` is the more
 promising of the two, since the child runs it while still single-threaded.
 
 
+.. _faq-comparing-implementations:
+
+How do I compare an engine against the reference implementation?
+----------------------------------------------------------------
+
+Checking that an engine agrees with the implementation it replaces — within a
+tolerance, or exactly — is a reasonable and common practice. With Coheriq, it
+requires **one process per implementation**: activation is one-way and
+process-global, so a single process can only ever observe one of them.
+
+Separate processes are the right tool here rather than a consolation prize:
+
+- **A same-process comparison would be a confounded experiment.** Enabling an
+  engine can change how *any* subsequent code in the process computes — an
+  engine can initialize MKL with different denormal or flush-to-zero flags,
+  change the FPU control word, raise or lower OpenMP thread counts, or install a
+  different BLAS at first touch. Code running after activation is the reference
+  implementation as observed in a process an engine has already altered. The
+  tighter the bar, the more this matters, so the rule protects the comparison.
+- **Benchmarking requires it regardless.** Timings taken after an engine has
+  warmed caches, spun up a thread pool, or claimed memory on a device measure
+  the state of the process. Separate processes are the only way to time two
+  implementations fairly, so a comparison harness needs this shape whether or
+  not it also checks numerical agreement.
+- **Recorded output outlives the build.** An in-process comparison can only
+  compare two implementations present at one moment. Save each run's output as
+  an artifact and you can also compare against a previous release, another
+  machine, a colleague's GPU run, or a build you cannot install locally — and
+  attach it to a bug report or bisect against it.
+
+Coheriq is deliberately restrictive here, because it is built for the setting
+where non-Python code enters the picture: an engine backed by a compiled
+extension, a foreign runtime, and a device it does not fully control. That is
+where the first point above bites hardest, and a contract that held only for
+engines written in pure Python would not be worth much in the HPC settings
+Coheriq targets. A pure-Python engine touches no global numerical state and so
+has less to fear from it, but it is held to the same rule.
+
+In practice:
+
+- **Run the whole suite once per implementation**, each in its own process,
+  selected by an environment variable or an equivalent switch. Coheriq's own
+  repository works this way — the example domain's suite runs twice, once
+  against the pure-Python reference implementation and once against the
+  compiled engine, with the engine chosen from the environment.
+- **Store results as artifacts and compare them with a tool built for it.**
+  `pytest-regressions <https://pypi.org/project/pytest-regressions/>`__ is one
+  worked example: its ``ndarrays_regression`` fixture compares against committed
+  reference data with per-array tolerances, supports exact comparison with
+  ``default_tolerance=dict(atol=0, rtol=0)``, and regenerates references with
+  ``--force-regen`` — which rewrites the files but still fails the test, so a
+  comparison cannot silently start accepting drift.
+- **Do not reach for** ``pytest-forked`` **in your own suite.** Coheriq's test
+  suite passes ``--forked`` because it exercises the activation machinery itself
+  and so needs a fresh registry for each of many tests. A domain's or engine's
+  suite exercises the library *under* one activation, which the whole suite can
+  share. Per-test forking buys nothing there, and because it relies on
+  :func:`os.fork`, a suite that depends on it does not run on Windows. Forking
+  is still supported in general — see :ref:`the question on threads and fork
+  <faq-threads-and-fork>` for the activate-then-fork worker pattern.
+
+Exact agreement is a stronger bar than a tolerance and makes any regression
+unmissable, but it can be fragile: achieving it means pinning the things that
+perturb floating-point results, such as FMA contraction and the order of
+vectorized reductions.
+
+
 API shape
 =========
 
@@ -552,6 +619,10 @@ engines being simultaneously active for the same domain. The supported way to
 get the benefit of multiple engines is to **compose them through inheritance**
 into a single hybrid engine, which resolves overrides via a single, well-defined
 MRO rather than an ambiguous runtime blend.
+
+If the goal is to *compare* implementations rather than combine them, see
+:ref:`the question on comparing an engine against the reference
+implementation <faq-comparing-implementations>`.
 
 Optimizing for non-Python callers
 ----------------------------------
