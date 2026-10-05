@@ -406,25 +406,6 @@ who wrote it or how fast it is. The reference implementation satisfies that
 description. It is the unit the domain itself supplies, and the one every other
 engine is defined relative to.
 
-Calling it the *reference* implementation rather than the *default* one is
-deliberate, and follows established use in high-performance computing, where a
-reference BLAS or LAPACK is the straightforward implementation that defines
-correct behavior and against which accelerated ones are checked.
-
-The two words answer different questions. "Reference" says what the
-implementation *is*, which stays true however it came to be selected; "default"
-says only that it is what you get when nobody chooses. Today they happen to
-pick out the same thing, so either would read correctly in most sentences. They
-are not guaranteed to stay that way: a domain could come to ship an engine that
-is used unless something else is enabled, at which point the default would be
-that engine and the reference implementation would still be the reference
-implementation. Documentation that says "reference" where it means the
-implementation therefore stays correct, while documentation that says "default"
-would quietly become ambiguous.
-
-"Default" is still the right word for what happens absent a choice, and this
-documentation uses it that way.
-
 Two consequences follow:
 
 - The reference implementation has a name, :data:`~coheriq.REFERENCE` (the
