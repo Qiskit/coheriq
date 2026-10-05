@@ -62,7 +62,8 @@ Activate an engine
 ==================
 
 There are two ways to activate an engine.  You must do so **before the first
-use** of any accelerated functionality; otherwise, the default implementation is used.
+use** of any accelerated functionality; otherwise, the library's reference
+implementation is used.
 
 In Python code
 --------------

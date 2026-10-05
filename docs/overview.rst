@@ -27,8 +27,8 @@ Coheriq exists so that acceleration can be **optional, decentralized, and
 drop-in**:
 
 - **Optional** — a user who cannot (or does not want to) run the accelerated
-  code keeps the library's default behavior, and pays none of the accelerated
-  implementation's installation or import cost.
+  code keeps the library's own reference implementation, and pays none of the
+  accelerated implementation's installation or import cost.
 - **Decentralized** — an acceleration engine can be developed, versioned, and
   published independently of the library it accelerates, by a different team or
   even a different organization.  The library author does not have to review or
@@ -69,7 +69,7 @@ Domain (the library)
     The library that owns the functionality.  It creates an
     :class:`~coheriq.AccelerationDomain`, marks functions and classes with the
     ``@domain.acceleration_candidate`` decorator, and calls
-    ``domain.materialize()`` to lock in the defaults.  See the
+    ``domain.materialize()`` to lock in its reference implementation.  See the
     :doc:`domain developer guide <../guides/domain-development>`.
 
 Engine (the accelerator)
