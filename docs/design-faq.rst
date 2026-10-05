@@ -168,6 +168,41 @@ restriction removes a class of failure mode rather than limiting anything a
 user realistically needs to do. The guiding principle is *as simple as
 possible, but no simpler.*
 
+.. _faq-one-engine:
+
+Why can only one engine be active per domain?
+---------------------------------------------
+
+A domain runs at most one engine at a time, and the reason is about whose
+problem compatibility becomes.
+
+If several engines could be active at once, somebody would have to decide which
+combinations work together. That question is genuinely hard — two engines may
+each replace an overlapping set of candidates, assume incompatible data
+representations, or expect exclusive use of a device — and the person least
+equipped to answer it is the user, who typically did not write either engine.
+Allowing simultaneous activation would hand them that burden by default, every
+time they install a second engine. Allowing only one means the question never
+arises: whatever engine is active, its world is internally consistent because
+one author designed it that way.
+
+This is a restriction on what activation does, not on what is achievable. A user
+who does want implementations from two engines can build an engine that inherits
+from both, and the combination resolves through Python's ordinary
+method-resolution order:
+
+.. code-block:: python
+
+   combined = coheriq.AccelerationEngine("mylib", "combined", ["fast", "distributed"])
+   combined.materialize()
+   coheriq.enable_engine("mylib", "combined")
+
+The difference is that the compatibility question is now answered explicitly, by
+someone who chose to take it on, in a named engine that can be tested as a unit.
+Nothing stops that engine from being a bad idea — this is enough rope to hang
+yourself with — but the user has to ask for it, and what they get is one
+coherent implementation rather than an ambiguous runtime blend.
+
 Why must an engine be activated before first use?
 -------------------------------------------------
 
@@ -551,7 +586,9 @@ A domain runs at most one engine at a time. Coheriq does not support several
 engines being simultaneously active for the same domain. The supported way to
 get the benefit of multiple engines is to **compose them through inheritance**
 into a single hybrid engine, which resolves overrides via a single, well-defined
-MRO rather than an ambiguous runtime blend.
+MRO rather than an ambiguous runtime blend. See
+:ref:`why only one engine is active <faq-one-engine>` for why the rule is drawn
+this way.
 
 Optimizing for non-Python callers
 ----------------------------------

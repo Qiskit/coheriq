@@ -93,7 +93,13 @@ restriction removes a class of failure mode rather than limiting anything a
 user realistically needs to do.
 
 One engine per domain
-    A domain can have at most one engine enabled at a time.
+    A domain can have at most one engine enabled at a time.  This keeps the
+    question of which engines are mutually compatible away from the user, who
+    usually wrote none of them: whichever engine is active was designed as a
+    consistent whole by one author.  Combining engines is still possible, but
+    it is done deliberately by building an engine that inherits from them (see
+    :ref:`below <overview-composition>`) rather than by activating several at
+    once.
 
 Process-global
     Activation applies to the whole process.  It is unlikely that different
@@ -121,6 +127,8 @@ variable that the domain author opts into.  When both are present, the
 **explicit call takes precedence**.  See the
 :doc:`user guide <../guides/user-guide>` for details.
 
+
+.. _overview-composition:
 
 Composition through inheritance
 ===============================
