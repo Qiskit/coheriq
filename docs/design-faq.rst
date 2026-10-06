@@ -406,6 +406,11 @@ who wrote it or how fast it is. The reference implementation satisfies that
 description. It is the unit the domain itself supplies, and the one every other
 engine is defined relative to.
 
+It is called the *reference* implementation rather than the *default* one
+because "default" is a status, and statuses change. If a domain ever ships an
+engine used by default, the reference implementation is still the reference
+implementation.
+
 Two consequences follow:
 
 - The reference implementation has a name, :data:`~coheriq.REFERENCE` (the
