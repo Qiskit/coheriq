@@ -27,8 +27,8 @@ Coheriq exists so that acceleration can be **optional, decentralized, and
 drop-in**:
 
 - **Optional** — a user who cannot (or does not want to) run the accelerated
-  code keeps the library's default behavior, and pays none of the accelerated
-  implementation's installation or import cost.
+  code keeps the library's own reference implementation, and pays none of the
+  accelerated implementation's installation or import cost.
 - **Decentralized** — an acceleration engine can be developed, versioned, and
   published independently of the library it accelerates, by a different team or
   even a different organization.  The library author does not have to review or
@@ -69,7 +69,7 @@ Domain (the library)
     The library that owns the functionality.  It creates an
     :class:`~coheriq.AccelerationDomain`, marks functions and classes with the
     ``@domain.acceleration_candidate`` decorator, and calls
-    ``domain.materialize()`` to lock in the defaults.  See the
+    ``domain.materialize()`` to lock in its reference implementation.  See the
     :doc:`domain developer guide <../guides/domain-development>`.
 
 Engine (the accelerator)
@@ -78,6 +78,13 @@ Engine (the accelerator)
     named domain, marks its replacements with ``@engine.override``, calls
     ``engine.materialize()``, and advertises its existence via Python entry points.  See the
     :doc:`engine developer guide <../guides/engine-development>`.
+
+    These three are *roles*, not necessarily three separate packages.  The
+    implementations a domain declares itself form an engine too -- the
+    **reference implementation**, named :data:`~coheriq.REFERENCE` -- which is
+    the one in effect when no other has been enabled.  Third-party engines are
+    defined relative to it, and the :doc:`design FAQ <../design-faq>` explains
+    why it counts as an engine rather than a separate kind of thing.
 
 User (the caller)
     Application code that uses the library.  The user activates an engine once
@@ -101,13 +108,16 @@ Process-global
     library, and a global choice keeps the model simple.
 
 One-way
-    Once an engine is enabled it cannot be swapped for another or disabled.
-    There is no reset in the public API.
+    Once an engine is active it cannot be swapped for another or disabled.
+    There is no reset in the public API.  Selecting the reference
+    implementation explicitly is a move *into* that settled state rather than
+    an escape from it, so it is permitted; disabling an active engine is not.
 
 Before first use
     An engine must be enabled *before* any marked function or class is used.
-    After first use, the default (or already-active) implementation is locked
-    in; switching then could leave data structures in an inconsistent state,
+    After first use, whichever implementation is in effect -- the reference
+    implementation, or an engine already enabled -- is locked in; switching then
+    could leave data structures in an inconsistent state,
     mixing the library-native and accelerated representations.
 
 Re-enabling is harmless
@@ -125,9 +135,9 @@ variable that the domain author opts into.  When both are present, the
 Composition through inheritance
 ===============================
 
-Under the hood, ``materialize()`` uses :func:`type` to build a class for the
-domain's defaults, and each engine builds a class that inherits from that
-domain class.  Because engines are ordinary Python classes, one engine can be
+Under the hood, ``materialize()`` uses :func:`type` to build the class that is
+the domain's reference implementation, and each engine builds a class that
+inherits from it.  Because engines are ordinary Python classes, one engine can be
 built from others: an engine may declare **base engines**, and Python's normal
 method-resolution order composes their overrides.
 
