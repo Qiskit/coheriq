@@ -108,6 +108,186 @@ predictable behavior:
 If you enable an engine name that does not exist, Coheriq raises
 :class:`~coheriq.CoheriqEngineNotFoundError`.
 
+Troubleshooting
+===============
+
+CoheriqDomainNotFoundError
+--------------------------
+
+**Problem**
+
+::
+
+    CoheriqDomainNotFoundError:
+    No domain named 'mylib' has been registered
+
+**Cause**
+
+The specified domain has not been registered with Coheriq.
+
+**Resolution**
+
+Register the domain or import a library that registers the domain before enabling an engine.
+
+.. code-block:: python
+
+    from coheriq import AccelerationDomain
+
+    domain = AccelerationDomain("mylib")
+
+
+CoheriqEngineNotFoundError
+--------------------------
+
+**Problem**
+
+::
+
+    CoheriqEngineNotFoundError:
+    Cannot find engine with name 'fast-engine' in domain 'mylib'
+
+**Cause**
+
+The domain exists, but the requested engine has not been registered.
+
+**Resolution**
+
+Verify the engine name and ensure the package providing the engine has been installed and imported before enabling it.
+
+.. code-block:: python
+
+    from coheriq import AccelerationDomain
+    from coheriq import AccelerationEngine
+
+    domain = AccelerationDomain("mylib")
+
+    engine = AccelerationEngine(
+        "mylib",
+        "fast-engine"
+    )
+
+
+Duplicate Domain Registration
+-----------------------------
+
+**Problem**
+
+::
+
+    CoheriqDomainError:
+    domain name has already been used
+
+**Cause**
+
+A domain with the same name has already been registered in the current Python process.
+
+**Resolution**
+
+Reuse the existing domain, use a different domain name, or restart the Python process.
+
+.. code-block:: python
+
+    domain = AccelerationDomain("mylib2")
+
+
+Domain Still in CONSTRUCTING State
+----------------------------------
+
+**Problem**
+
+::
+
+    CoheriqDomainError:
+    Cannot enable an engine if domain is in state _DomainState.CONSTRUCTING
+
+**Cause**
+
+The domain and engine have not been materialized before activation.
+
+**Resolution**
+
+Materialize the domain and engine before enabling the engine.
+
+.. code-block:: python
+
+    domain.materialize()
+    engine.materialize()
+
+    coheriq.enable_engine(
+        "mylib",
+        "fast-engine"
+    )
+
+
+Cannot Enable an Engine After First Use
+---------------------------------------
+
+**Problem**
+
+::
+
+    CoheriqDomainError:
+    Cannot enable an engine if domain is in state
+    _DomainState.CALLED_WITHOUT_ENGINE
+
+**Cause**
+
+An acceleration candidate was executed before engine activation.
+
+**Resolution**
+
+Enable the engine before the first call to any acceleration candidate.
+
+.. code-block:: python
+
+    coheriq.enable_engine("mylib", "fast-engine")
+
+    mylib.hello()
+
+Cannot Switch Engines After Activation
+--------------------------------------
+
+**Problem**
+
+::
+
+    CoheriqDomainError:
+    Cannot enable an engine if domain is in state
+    _DomainState.ENGINE_ENABLED
+
+**Cause**
+
+An engine has already been activated for the domain.
+
+**Resolution**
+
+Choose the desired engine before activation. To activate a different engine, restart the Python process or Jupyter kernel and enable the desired engine before using the domain.
+
+
+Invalid Engine Name in Environment Variable
+-------------------------------------------
+
+**Problem**
+
+::
+
+    CoheriqEngineNotFoundError:
+    Cannot find engine with name 'fast-enginee'
+    in domain 'mylib'
+
+**Cause**
+
+The engine specified through the environment variable does not match a registered engine.
+
+**Resolution**
+
+Verify that the value assigned to the environment variable matches a registered engine name.
+
+.. code-block:: python
+
+    os.environ["MYLIB_ENGINE"] = "fast-engine"
+
+
 Reporting issues
 ================
 
