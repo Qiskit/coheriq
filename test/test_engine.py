@@ -12,8 +12,8 @@
 
 from unittest import mock
 
-import pytest
 import coheriq
+import pytest
 from coheriq import (
     AccelerationDomain,
     AccelerationEngine,
@@ -87,11 +87,11 @@ class TestDomainConstruction:
         domain.materialize()
         assert wrapped_f() == f()
 
-    def test_list_domains(self):
+    def test_known_domains(self):
         AccelerationDomain("foo")
         AccelerationDomain("bar")
 
-        domains = coheriq.list_domains()
+        domains = coheriq.known_domains()
 
         assert "foo" in domains
         assert "bar" in domains
