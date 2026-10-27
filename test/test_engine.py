@@ -88,13 +88,11 @@ class TestDomainConstruction:
         assert wrapped_f() == f()
 
     def test_known_domains(self):
+        # Construct out of alphabetical order to test sorting.
         AccelerationDomain("foo")
         AccelerationDomain("bar")
 
-        domains = coheriq.known_domains()
-
-        assert "foo" in domains
-        assert "bar" in domains
+        assert coheriq.known_domains() == ("bar", "foo")
 
 
 class TestEngineConstruction:
