@@ -43,7 +43,7 @@ def known_domains() -> tuple[str, ...]:
     """Return domains known to the current process.
 
     Only domains that have been constructed in the current process are
-    reported. This does not enumerate installed domains from packages that
+    reported. This does not include installed domains from packages that
     have not yet been imported.
     """
     with _domain_registry_lock:
