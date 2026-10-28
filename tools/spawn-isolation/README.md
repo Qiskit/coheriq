@@ -113,6 +113,55 @@ Reproduce:
 Cost: 6.5s vs 0.46s forked. Starting coverage dominates the per-test constant,
 so this is the case that most wants `pytest-xdist` underneath it.
 
+## Exposure to pytest/coverage internals
+
+The relevant question is whether this inherits pytest-forked's periodic
+breakage. It mostly does not, because the two cross the process boundary
+differently.
+
+pytest-forked ships a report object between processes: it copies
+`rep.__dict__`, `marshal`s it, and rebuilds with `runner.TestReport(**d)`.
+That couples it to the *internal layout* of a pytest class, which is not a
+supported interface and is exactly what moved in 9.2. The vendored shim also
+imports from `_pytest` in four places and reaches for `_pytest._code.getfslineno`.
+
+This prototype sends plain JSON -- `when`, `outcome`, `longrepr` as a string,
+`duration` -- and builds a fresh report in the parent. Those field *names* are
+stable public API; no pytest object is serialized, so internal layout changes
+cannot reach it.
+
+Verified on an unpinned pytest 9.2.0: `marshal.dumps(report.__dict__)` raises
+`ValueError` (the shim's failure) while the suite runs 27 passed through this
+plugin.
+
+What it touches:
+
+| API | Status |
+| --- | --- |
+| `pytest.hookimpl`, `pytest.fail` | public |
+| `pytest.TestReport`, `pytest.CallInfo.from_call` | public (re-exported) |
+| `item.nodeid`, `item.location`, `item.config`, `item.ihook` | public |
+| `config.rootpath` | public |
+| `coverage.Coverage.current()`, `coverage.process_startup()` | public, documented |
+| `item.session._setupstate.teardown_exact(nextitem)` | **private** |
+
+One private call, and the shim needs the same one, so it is not a regression.
+It is also the load-bearing line that makes fixtures tear down at the right
+time -- there is no public equivalent. Risk if it moves: an `AttributeError`
+at the first test, which is loud and immediate rather than silent.
+
+Residual risks, in order:
+
+1. `_setupstate` is renamed or `teardown_exact` changes signature. Loud.
+2. `longrepr` is flattened to a string, so a failure shows pytest's rendered
+   traceback rather than a live object. Cosmetic, already true today.
+3. Coverage needs three cooperating pieces (see above), and a change in
+   pytest-cov's data handling could reopen the 0% symptom. This is the part
+   with the most moving parts and the least loud failure.
+
+So: less exposed than pytest-forked, and the exposure that remains fails
+noisily. The thing to actually watch is coverage, not pytest.
+
 ## Not addressed
 - **Windows actually run.** The code path uses no POSIX-only calls, which is
   not the same as having been tested on Windows.
