@@ -1,7 +1,11 @@
-# Spawn-based per-test isolation (prototype, not wired into CI)
+# Spawn-based per-test isolation
 
-Exploratory. Nothing here runs as part of `tox`; it is parked so the
-investigation does not have to be redone.
+Runs as `tox -e py-spawn` and `tox -e coverage-spawn`, alongside (not instead
+of) the `--forked` defaults.  Windows CI runs both, so the registry-dependent
+unit tests and their coverage are now exercised there.
+
+Still exploratory in the sense that `--forked` remains the default everywhere
+it works; these envs are the Windows path and a cross-check.
 
 ## What this is
 
@@ -30,11 +34,20 @@ Two constraints motivated the look:
   `report.nodeid` behind a dataclass its `marshal` transport cannot serialize,
   which is why `pyproject.toml` pins `pytest<9.2` (commit e21e0ba).
 
-## Status: deliberately not adopted
+## Status
 
-`--forked` works on the platforms this repo tests, and Windows already gets
-real dispatch coverage through the in-process `notebook`/`ragged` envs. The
-trigger to revisit is the pytest pin, not Windows support.
+Added as extra envs, not as a replacement.  `--forked` stays the default on
+POSIX: it is ~10x faster and is what the `py`/`doctest`/`coverage` envs use.
+
+    tox -e py-spawn         # unit tests, one fresh interpreter per test
+    tox -e coverage-spawn   # same, with coverage (81%, matches forked)
+
+Windows CI runs `py-spawn,coverage-spawn,notebook,ragged,ragged-engine`.
+Before this it ran only the in-process envs, so nothing requiring an empty
+registry was tested there at all.
+
+The trigger to make spawn the *default* would be the `pytest<9.2` pin, not
+Windows support.
 
 ## Measurements
 

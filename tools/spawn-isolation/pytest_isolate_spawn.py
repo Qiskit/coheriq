@@ -37,7 +37,8 @@ if os.environ.get("ISOLATE_CHILD_REPORT"):
             f.write(json.dumps(rec) + "\n")
 
 
-_SITECUSTOMIZE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_covstart")
+_PLUGIN_DIR = os.path.dirname(os.path.abspath(__file__))
+_SITECUSTOMIZE_DIR = os.path.join(_PLUGIN_DIR, "_covstart")
 
 
 def _coverage_is_active():
@@ -72,14 +73,22 @@ def pytest_runtest_protocol(item, nextitem):
         # Requires `parallel = true` (already set in pyproject.toml) so the
         # children write distinct .coverage.* files instead of truncating one
         # another, and a `coverage combine` before reporting.
+        # The child must re-import this plugin by name, so its directory has to
+        # be importable there.  Propagate it from __file__ rather than relying on
+        # the caller's PYTHONPATH, so a tox env only needs `-p
+        # pytest_isolate_spawn` and nothing about layout.
+        pypath = [_PLUGIN_DIR]
+
         cov_rc = os.environ.get("COVERAGE_PROCESS_START")
         if cov_rc is None and _coverage_is_active():
             cov_rc = str(item.config.rootpath / "pyproject.toml")
         if cov_rc:
             env["COVERAGE_PROCESS_START"] = cov_rc
-            env["PYTHONPATH"] = os.pathsep.join(
-                filter(None, [str(_SITECUSTOMIZE_DIR), env.get("PYTHONPATH", "")])
-            )
+            pypath.append(_SITECUSTOMIZE_DIR)
+
+        env["PYTHONPATH"] = os.pathsep.join(
+            filter(None, [*pypath, env.get("PYTHONPATH", "")])
+        )
 
         proc = subprocess.run(
             [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider",
