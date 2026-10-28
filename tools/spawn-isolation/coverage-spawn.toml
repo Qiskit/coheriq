@@ -4,7 +4,17 @@ branch = true
 parallel = true
 
 [tool.coverage.paths]
-source = ["src/", "*/site-packages/"]
+# Maps the child's measured path back onto the source tree.  The child imports
+# coheriq from the wheel tox installed, so the data names site-packages; without
+# this the report lists src/ files with zero lines and shows 0% everywhere.
+#
+# Both separators are listed because coverage matches these patterns against the
+# recorded path as-is, and the Windows runner records backslashes.
+source = [
+    "src/coheriq",
+    "*/site-packages/coheriq",
+    "*\\site-packages\\coheriq",
+]
 
 [tool.coverage.report]
 fail_under = 75
