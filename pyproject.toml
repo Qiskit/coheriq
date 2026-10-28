@@ -41,7 +41,11 @@ dev = [
     "tox>=4.22.0",
 ]
 basetest = [
-    "pytest>=8.0",
+    # pytest 9.2 moved report.nodeid behind a NodeId dataclass stored in the
+    # report's __dict__, which pytest-forked's marshal-based transport cannot
+    # serialize.  Every --forked test dies in the child.  Unpin once
+    # pytest-forked handles it.
+    "pytest>=8.0,<9.2",
     "pytest-cov>=5.0",
     "pytest-forked>=1.4.0",
 ]
