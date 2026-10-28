@@ -12,6 +12,7 @@
 
 from unittest import mock
 
+import coheriq
 import pytest
 from coheriq import (
     AccelerationDomain,
@@ -85,6 +86,13 @@ class TestDomainConstruction:
         wrapped_f = domain.acceleration_candidate(f)
         domain.materialize()
         assert wrapped_f() == f()
+
+    def test_known_domains(self):
+        # Construct out of alphabetical order to test sorting.
+        AccelerationDomain("foo")
+        AccelerationDomain("bar")
+
+        assert coheriq.known_domains() == ("bar", "foo")
 
 
 class TestEngineConstruction:
