@@ -76,10 +76,44 @@ failure, `os._exit(1)`, a real segfault via `ctypes.string_at(0)`, and a test
 that sets a `builtins` global to prove state does not leak between tests.
 All report correctly and the parent run survives.
 
-## Not addressed
+## Coverage: works, but needs three things
 
-- **Coverage.** The `--forked` envs rely on the vendored shim's explicit
-  coverage flush. Spawn needs subprocess coverage plus `coverage combine`.
+Measured: **81%, byte-identical to the `--forked` baseline** -- same per-file
+percentages, same missing-line lists, 27 passed either way.
+
+Getting there needed three separate fixes, and each failed as a flat **0% on
+every file**, which is the same symptom that originally forced the vendoring.
+Worth knowing because the symptom does not distinguish them:
+
+1. **The child never starts coverage.** A spawned interpreter does not inherit
+   the parent's `Coverage` object the way a fork does. Fixed with
+   `COVERAGE_PROCESS_START` plus `_covstart/sitecustomize.py` calling
+   `coverage.process_startup()`. Needs `parallel = true` (already set) so the
+   children do not truncate each other's data, then a `coverage combine`.
+2. **`pytest-cov` in the parent erases the children's data.** Run the parent
+   with `--no-cov` and report from `coverage combine` afterwards.
+3. **`source = ["src"]` measures nothing.** tox installs a wheel, so the child
+   imports `coheriq` from `site-packages`, which `source = ["src"]` excludes --
+   it yields 5 files at 0 lines each. `source_pkgs = ["coheriq"]` follows the
+   import instead, with `[tool.coverage.paths]` mapping `site-packages` back
+   onto `src/` so the report names source files.
+
+`coverage-spawn.toml` holds (3); it is separate from `pyproject.toml` because
+the spawn and fork paths genuinely need different `run` sections.
+
+Reproduce:
+
+    rm -f .coverage*
+    COVERAGE_PROCESS_START=$PWD/tools/spawn-isolation/coverage-spawn.toml \
+      PYTHONPATH=tools/spawn-isolation \
+      python -m pytest -p pytest_isolate_spawn --isolate -q --no-cov test/
+    python -m coverage combine -q --rcfile=tools/spawn-isolation/coverage-spawn.toml
+    python -m coverage report --rcfile=tools/spawn-isolation/coverage-spawn.toml
+
+Cost: 6.5s vs 0.46s forked. Starting coverage dominates the per-test constant,
+so this is the case that most wants `pytest-xdist` underneath it.
+
+## Not addressed
 - **Windows actually run.** The code path uses no POSIX-only calls, which is
   not the same as having been tested on Windows.
 - **MPI.** Irrelevant here, but noted for the sibling case: under

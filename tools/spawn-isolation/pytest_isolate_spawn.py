@@ -37,6 +37,18 @@ if os.environ.get("ISOLATE_CHILD_REPORT"):
             f.write(json.dumps(rec) + "\n")
 
 
+_SITECUSTOMIZE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_covstart")
+
+
+def _coverage_is_active():
+    """True if the parent run is measuring coverage (pytest-cov or `coverage run`)."""
+    try:
+        import coverage
+    except ImportError:
+        return False
+    return coverage.Coverage.current() is not None
+
+
 # ---- parent side: spawn one interpreter per test -------------------------
 @pytest.hookimpl(tryfirst=True)
 def pytest_runtest_protocol(item, nextitem):
@@ -49,6 +61,26 @@ def pytest_runtest_protocol(item, nextitem):
     with tempfile.TemporaryDirectory() as td:
         sidecar = os.path.join(td, "reports.jsonl")
         env = dict(os.environ, ISOLATE_CHILD_REPORT=sidecar)
+
+        # A spawned child is a brand new interpreter: unlike a fork, it does not
+        # inherit the parent's running Coverage object, so nothing measures it
+        # and every line reports as uncovered.  coverage's documented fix for
+        # subprocesses is COVERAGE_PROCESS_START plus a sitecustomize that calls
+        # process_startup() -- which no-ops unless that variable is set, so this
+        # is inert when running without coverage.
+        #
+        # Requires `parallel = true` (already set in pyproject.toml) so the
+        # children write distinct .coverage.* files instead of truncating one
+        # another, and a `coverage combine` before reporting.
+        cov_rc = os.environ.get("COVERAGE_PROCESS_START")
+        if cov_rc is None and _coverage_is_active():
+            cov_rc = str(item.config.rootpath / "pyproject.toml")
+        if cov_rc:
+            env["COVERAGE_PROCESS_START"] = cov_rc
+            env["PYTHONPATH"] = os.pathsep.join(
+                filter(None, [str(_SITECUSTOMIZE_DIR), env.get("PYTHONPATH", "")])
+            )
+
         proc = subprocess.run(
             [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider",
              "-p", "pytest_isolate_spawn", item.nodeid],
