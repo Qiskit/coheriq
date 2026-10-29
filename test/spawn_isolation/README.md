@@ -55,7 +55,7 @@ Windows support.
 
 ## Measurements
 
-26 tests, Linux, Python 3.14:
+26 tests (measured before #32 added one), Linux, Python 3.14:
 
 | approach            | wall time |
 | ------------------- | --------- |
@@ -77,21 +77,28 @@ success.
 
 The fix is in `pytest_runtest_protocol`: a missing `call` phase is treated as a
 failure, not as silence. **Any** process-isolation scheme has this failure mode.
-Any real version of this needs a test asserting that a segfault reports as a
-failure.
+
+There is currently no automated check for this, which is the main gap in this
+prototype. A real version needs a test that runs the plugin against a
+deliberately crashing test and asserts the outcome is a failure -- which means
+driving pytest from pytest, so it belongs in a harness like `pytester`, not in
+a directory of files that nothing executes.
 
 ## Verified
 
 Against `test/` on pytest 9.2.0 -- the version that breaks `pytest-forked`:
 
     pip install pytest-xdist          # optional, for -n
-    PYTHONPATH=tools/spawn-isolation \
+    PYTHONPATH=test/spawn_isolation \
       python -m pytest -p pytest_isolate_spawn --isolate -q test/
 
-26 passed. The `demo/` directory exercises the reporting edge cases: a plain
-failure, `os._exit(1)`, a real segfault via `ctypes.string_at(0)`, and a test
-that sets a `builtins` global to prove state does not leak between tests.
-All report correctly and the parent run survives.
+27 passed.
+
+Crash reporting was checked separately, against throwaway tests that called
+`os._exit(1)` and segfaulted via `ctypes.string_at(0)`: both report as
+failures and the parent run survives. Those cases are not kept in the repo,
+since nothing would run them -- see the note below on what a real version
+would need.
 
 ## Coverage: works, but needs three things
 
@@ -121,11 +128,11 @@ the spawn and fork paths genuinely need different `run` sections.
 Reproduce:
 
     rm -f .coverage*
-    COVERAGE_PROCESS_START=$PWD/tools/spawn-isolation/coverage-spawn.toml \
-      PYTHONPATH=tools/spawn-isolation \
+    COVERAGE_PROCESS_START=$PWD/test/spawn_isolation/coverage-spawn.toml \
+      PYTHONPATH=test/spawn_isolation \
       python -m pytest -p pytest_isolate_spawn --isolate -q --no-cov test/
-    python -m coverage combine -q --rcfile=tools/spawn-isolation/coverage-spawn.toml
-    python -m coverage report --rcfile=tools/spawn-isolation/coverage-spawn.toml
+    python -m coverage combine -q --rcfile=test/spawn_isolation/coverage-spawn.toml
+    python -m coverage report --rcfile=test/spawn_isolation/coverage-spawn.toml
 
 Cost: 6.5s vs 0.46s forked. Starting coverage dominates the per-test constant,
 so this is the case that most wants `pytest-xdist` underneath it.

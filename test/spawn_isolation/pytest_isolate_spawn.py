@@ -17,22 +17,35 @@ Replaces pytest-forked's fork with a `python -m pytest <nodeid>` subprocess.
 Reports are rebuilt from a JSON sidecar the child writes, so nothing
 pytest-internal has to be pickled or marshalled across the boundary.
 """
-import json, os, subprocess, sys, tempfile
+
+import json
+import os
+import subprocess
+import sys
+import tempfile
+
 import pytest
 
 
 def pytest_addoption(parser):
-    parser.addoption("--isolate", action="store_true",
-                     help="run each test in a fresh interpreter (no fork needed)")
+    parser.addoption(
+        "--isolate",
+        action="store_true",
+        help="run each test in a fresh interpreter (no fork needed)",
+    )
 
 
 # ---- child side: dump outcomes to a sidecar file -------------------------
 if os.environ.get("ISOLATE_CHILD_REPORT"):
+
     def pytest_runtest_logreport(report):
         path = os.environ["ISOLATE_CHILD_REPORT"]
-        rec = {"when": report.when, "outcome": report.outcome,
-               "longrepr": str(report.longrepr) if report.longrepr else None,
-               "duration": getattr(report, "duration", 0.0)}
+        rec = {
+            "when": report.when,
+            "outcome": report.outcome,
+            "longrepr": str(report.longrepr) if report.longrepr else None,
+            "duration": getattr(report, "duration", 0.0),
+        }
         with open(path, "a") as f:
             f.write(json.dumps(rec) + "\n")
 
@@ -86,20 +99,29 @@ def pytest_runtest_protocol(item, nextitem):
             env["COVERAGE_PROCESS_START"] = cov_rc
             pypath.append(_SITECUSTOMIZE_DIR)
 
-        env["PYTHONPATH"] = os.pathsep.join(
-            filter(None, [*pypath, env.get("PYTHONPATH", "")])
-        )
+        env["PYTHONPATH"] = os.pathsep.join(filter(None, [*pypath, env.get("PYTHONPATH", "")]))
 
         proc = subprocess.run(
-            [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider",
-             "-p", "pytest_isolate_spawn", item.nodeid],
-            env=env, capture_output=True, text=True,
+            [
+                sys.executable,
+                "-m",
+                "pytest",
+                "-q",
+                "-p",
+                "no:cacheprovider",
+                "-p",
+                "pytest_isolate_spawn",
+                item.nodeid,
+            ],
+            env=env,
+            capture_output=True,
+            text=True,
             cwd=str(item.config.rootpath),
         )
         recs = []
         if os.path.exists(sidecar):
             with open(sidecar) as f:
-                recs = [json.loads(l) for l in f if l.strip()]
+                recs = [json.loads(line) for line in f if line.strip()]
 
     phases = {r["when"] for r in recs}
     if not recs or "call" not in phases:
@@ -108,16 +130,23 @@ def pytest_runtest_protocol(item, nextitem):
             lambda: pytest.fail(
                 f"isolated test process exited with {proc.returncode}\n"
                 f"--- stdout ---\n{proc.stdout}\n--- stderr ---\n{proc.stderr}",
-                pytrace=False), "call")
+                pytrace=False,
+            ),
+            "call",
+        )
         rep = ihook.pytest_runtest_makereport(item=item, call=call)
         ihook.pytest_runtest_logreport(report=rep)
     else:
         for rec in recs:
             rep = pytest.TestReport(
-                nodeid=item.nodeid, location=item.location,
-                keywords={}, outcome=rec["outcome"],
-                longrepr=rec["longrepr"], when=rec["when"],
-                duration=rec["duration"])
+                nodeid=item.nodeid,
+                location=item.location,
+                keywords={},
+                outcome=rec["outcome"],
+                longrepr=rec["longrepr"],
+                when=rec["when"],
+                duration=rec["duration"],
+            )
             ihook.pytest_runtest_logreport(report=rep)
 
     item.session._setupstate.teardown_exact(nextitem)
