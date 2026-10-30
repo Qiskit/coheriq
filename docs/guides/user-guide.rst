@@ -108,6 +108,116 @@ predictable behavior:
 If you enable an engine name that does not exist, Coheriq raises
 :class:`~coheriq.CoheriqEngineNotFoundError`.
 
+Troubleshooting
+===============
+
+CoheriqDomainNotFoundError
+--------------------------
+
+**Problem**
+
+::
+
+    CoheriqDomainNotFoundError:
+    No domain named 'mylib' has been registered
+
+**Cause**
+
+The specified domain has not been registered with Coheriq.
+
+**Resolution**
+
+Register the domain or import a library that registers the domain before enabling an engine.
+
+.. code-block:: python
+
+    from coheriq import AccelerationDomain
+
+    domain = AccelerationDomain("mylib")
+
+
+CoheriqEngineNotFoundError
+--------------------------
+
+**Problem**
+
+::
+
+    CoheriqEngineNotFoundError:
+    Cannot find engine with name 'fast-engine' in domain 'mylib'
+
+**Cause**
+
+The domain exists, but the requested engine has not been registered.
+
+**Resolution**
+
+Verify the engine name and ensure the package providing the engine has been installed and imported before enabling it.
+
+.. code-block:: python
+
+    from coheriq import AccelerationDomain
+    from coheriq import AccelerationEngine
+
+    domain = AccelerationDomain("mylib")
+
+    engine = AccelerationEngine(
+        "mylib",
+        "fast-engine"
+    )
+
+
+Duplicate Domain Registration
+-----------------------------
+
+**Problem**
+
+::
+
+    CoheriqDomainError:
+    domain name has already been used
+
+**Cause**
+
+A domain with the same name has already been registered in the current Python process.
+
+**Resolution**
+
+Reuse the existing domain, use a different domain name, or restart the Python process.
+
+.. code-block:: python
+
+    domain = AccelerationDomain("mylib2")
+
+
+Domain Still in CONSTRUCTING State
+----------------------------------
+
+**Problem**
+
+::
+
+    CoheriqDomainError:
+    Cannot enable an engine if domain is in state _DomainState.CONSTRUCTING
+
+**Cause**
+
+The domain and engine have not been materialized before activation.
+
+**Resolution**
+
+Materialize the domain and engine before enabling the engine.
+
+.. code-block:: python
+
+    domain.materialize()
+    engine.materialize()
+
+    coheriq.enable_engine(
+        "mylib",
+        "fast-engine"
+    )
+
 Reporting issues
 ================
 
