@@ -35,16 +35,32 @@ environment variable described below).
 Query the available engines
 ===========================
 
-Which engine names are available depends on what you have installed.  In the future, Coheriq is expected to provide a mechanism for querying them.  The name
-you pass to :func:`~coheriq.enable_engine` is the engine
-name that the engine package advertises.
+Which engine names are available depends on what you have installed.
+:func:`~coheriq.available_engines` lists the ones you can pass to
+:func:`~coheriq.enable_engine`, given the library's domain name:
+
+.. code-block:: python
+
+   >>> import coheriq
+   >>> coheriq.available_engines("mylib")
+   ('reference', 'mylib-fast')
+
+Every library has at least one entry: ``'reference'``, its own implementation.
+In the current version of Coheriq it comes first and is the one you get if you
+enable nothing.  Any other names are acceleration engines you have installed.
+
+Asking this question does not activate anything, and it does not import the
+engine packages it names.  An engine can advertise itself without having been
+imported yet, so a listed name means :func:`~coheriq.enable_engine` will try it,
+not that it is guaranteed to load.
 
 
 Activate an engine
 ==================
 
 There are two ways to activate an engine.  You must do so **before the first
-use** of any accelerated functionality; otherwise, the default implementation is used.
+use** of any accelerated functionality; otherwise, the library's reference
+implementation is used.
 
 In Python code
 --------------
