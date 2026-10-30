@@ -86,8 +86,8 @@ any other engine — the composition is only as correct as the pieces and their
 interaction.
 
 
-Attach an exactness guarantee to a named engine
-===============================================
+Put the exactness guarantee in the engine name
+==============================================
 
 Some accelerated implementations reproduce the reference implementation
 bit-for-bit, and some do not — at times within the same codebase, where one kernel
