@@ -173,20 +173,20 @@ possible, but no simpler.*
 Why can only one engine be active per domain?
 ---------------------------------------------
 
-A domain runs at most one engine at a time.
+In Coheriq's model, a domain runs at most one engine at a time.
 
 If several could be active at once, somebody would have to decide which
 combinations work together. That question is genuinely hard — two engines may
 each replace an overlapping set of candidates, assume incompatible data
 representations, or expect exclusive use of a device. The user is the party
 least equipped to answer it, having typically written neither engine, and
-simultaneous activation would hand them that question every time they install a
-second one. Allowing only one means it never arises: whichever engine is active
-was designed as a consistent whole by one author.
+simultaneous activation would put the question to them every time they install
+a second engine. Allowing only one engine does not make the question go away;
+it moves it to whoever deliberately combines two.
 
-This restricts what activation does, not what is achievable. A user who wants
-implementations from two engines can build an engine that inherits from both,
-and the combination resolves through Python's ordinary method-resolution order:
+That is the escape hatch. A user who wants implementations from two engines can
+build an engine that inherits from both, and the combination resolves through
+Python's ordinary method-resolution order:
 
 .. code-block:: python
 
@@ -194,9 +194,8 @@ and the combination resolves through Python's ordinary method-resolution order:
    combined.materialize()
    coheriq.enable_engine("mylib", "combined")
 
-The compatibility question is then answered explicitly, by someone who chose to
-take it on, in a named engine that the domain's test suite can exercise as a
-unit.
+The question is then answered by the author of a named engine, which the
+domain's test suite can exercise as a unit.
 
 Why must an engine be activated before first use?
 -------------------------------------------------
