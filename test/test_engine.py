@@ -635,10 +635,10 @@ class TestDomainNameConvention:
             warnings.simplefilter("error", CoheriqWarning)
             AccelerationDomain("coheriq")
 
-    def test_no_warning_for_a_module_not_yet_imported(self):
-        # Findability, not prior import, is what the convention requires: a
-        # domain is normally constructed while its own package is still being
-        # imported.
+    def test_findability_not_prior_import_is_the_criterion(self):
+        # A domain is normally constructed while its own package is still being
+        # imported, so requiring prior import would warn on every correctly
+        # named domain.  Findability is what the convention needs.
         name = "coheriq.activation"
         assert name in sys.modules
         del sys.modules[name]
@@ -651,8 +651,9 @@ class TestDomainNameConvention:
 
     @pytest.mark.parametrize("name", ["my lib", "foo..bar", ".foo", "foo.", "foo-bar"])
     def test_warns_for_a_name_that_cannot_be_a_module(self, name):
-        # These are screened out before ``find_spec`` is consulted, since a
-        # dotted name with an unimportable parent makes it raise.
+        # These reach find_spec, which raises for some of them rather than
+        # returning None.  Reaching the warning at all is what is under test:
+        # nothing may escape the lookup.
         with pytest.warns(CoheriqDomainWarning):
             AccelerationDomain(name)
 
@@ -718,10 +719,10 @@ class TestDomainAsModule:
         assert activation._resolve_domain("coheriq") is coheriq_domain
 
     def test_a_submodule_does_not_resolve_to_its_parent(self, coheriq_domain):
-        # Resolution is by name only; walking up the dotted path would hide the
-        # mistake instead of teaching the convention.
+        # Resolution is by name only.  A domain may be named for any importable
+        # module, so a submodule standing in for its parent would be a guess.
         assert coheriq_domain is activation._resolve_domain(coheriq)
-        with pytest.raises(CoheriqDomainNotFoundError, match="top-level package"):
+        with pytest.raises(CoheriqDomainNotFoundError, match="defines no domain of that name"):
             enable_engine(activation, "fast")
 
     @pytest.mark.parametrize("bad", [42, None, [], f])

@@ -46,16 +46,6 @@ def _domain_not_found_message(name: str) -> str:
     """
     message = f"No domain named '{name}' has been registered"
     if name in sys.modules:
-        # The module is imported yet registered no domain under its own name.
-        # Either it is not a coheriq domain at all, or -- the likelier mistake --
-        # it is a submodule of the package that owns the domain, since a domain
-        # is named after its top-level package.
-        top_level = name.split(".")[0]
-        if top_level != name and top_level in known_domains():
-            return (
-                f"{message}.  A domain is named after its top-level package, so "
-                f"pass '{top_level}' rather than the submodule '{name}'."
-            )
         return f"{message}.  Module '{name}' is imported but defines no domain of that name."
     if _module_is_findable(name):
         return (

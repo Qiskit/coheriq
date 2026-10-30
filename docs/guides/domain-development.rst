@@ -126,15 +126,27 @@ package it belongs to:
    # In mylib/_acceleration.py
    _domain = AccelerationDomain("mylib")
 
-Constructing the domain in a submodule is fine, and is the usual arrangement;
-it is the *name* that must be the top-level package.  Coheriq issues a
+Constructing the domain in a submodule is fine, and is the usual arrangement:
+the name need only be *an importable module*.  Coheriq issues a
 :exc:`~coheriq.CoheriqDomainWarning` if the name does not resolve to an
 importable module, since a user who passes the module would then get a
 confusing lookup failure.
 
-This is a convention rather than a requirement, because a domain defined in a
-script, a notebook, or a test has no package to be named after.  Such a domain
-works normally; only the module form of the call is unavailable to it.
+A library with two genuinely separate bodies of functionality may give each its
+own domain, named for the subpackage it belongs to:
+
+.. code-block:: python
+
+   # In mylib/solver/_acceleration.py
+   _domain = AccelerationDomain("mylib.solver")
+
+Users then pass that module: ``coheriq.enable_engine(mylib.solver, ...)``.
+
+Naming a domain after a module is a convention rather than a requirement,
+because a domain defined in a script, a notebook, or a test has no package to
+be named after.  Such a domain works normally.  The only thing it gives up is
+being named by module: its users must pass its name as a string to
+:func:`~coheriq.enable_engine`.
 
 Opting into environment-variable activation
 -------------------------------------------

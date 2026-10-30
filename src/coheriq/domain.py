@@ -54,24 +54,17 @@ implementation.
 _RESERVED_ENGINE_NAME_PREFIX: Final = REFERENCE
 
 
-def _is_dotted_identifier(name: str) -> bool:
-    """Return whether ``name`` has the shape of a dotted module name."""
-    return bool(name) and all(segment.isidentifier() for segment in name.split("."))
-
-
 def _module_is_findable(name: str) -> bool:
     """Return whether ``name`` names a module that can be found on the import path.
 
     This never imports ``name``: an already-imported module is answered from
-    ``sys.modules``, and anything else is resolved by the finders alone.  The
-    broad ``except`` is deliberate — this only ever informs a warning, so a
-    finder that raises must not be allowed to break domain construction.
+    ``sys.modules``, and anything else is resolved by the finders alone.
+
+    The broad ``except`` is deliberate.  ``find_spec`` raises rather than
+    returning ``None`` for a dotted name whose parent cannot be imported, and a
+    third-party finder may raise anything at all.  Since the result only ever
+    informs a warning, nothing here may break domain construction.
     """
-    if not _is_dotted_identifier(name):
-        # find_spec raises, rather than returning None, for a dotted name whose
-        # parent package cannot be imported, so screen out anything that is not
-        # shaped like a module name before asking it.
-        return False
     try:
         return importlib.util.find_spec(name) is not None
     except Exception:  # pylint: disable=broad-exception-caught

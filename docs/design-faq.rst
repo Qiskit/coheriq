@@ -462,8 +462,8 @@ Passing the module makes the precondition unstatable: the module cannot be
 named before it has been imported. Resolution is by name, which is why a
 domain's name should be the ``__name__`` of the package it belongs to.
 
-Why is the convention only a warning?
---------------------------------------
+Why is the ``__name__`` convention only a warning?
+---------------------------------------------------
 
 A domain whose name is not an importable module cannot be activated by passing
 that module, so Coheriq warns
@@ -472,7 +472,8 @@ name. It is a warning rather than an error because a domain defined in a
 script, a notebook, or a test has no package to be named after, and those
 domains are legitimate — the demonstration notebooks in this repository define
 a domain and an engine in one file, which no package name could describe. Such
-a domain works normally; only the module form of the call is unavailable to it.
+a domain works normally; its users just pass its name as a string to
+:func:`~coheriq.enable_engine`.
 
 The check runs at construction, where the name is passed, so the warning points
 at the line that needs changing. It never imports the name it is checking.

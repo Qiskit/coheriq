@@ -79,8 +79,6 @@ Coheriq is a **dispatch decorator framework** that allows a library (the "domain
 
 The reference implementation is an engine, not a separate kind of thing: every engine's class inherits from the domain's, and dispatch does not branch on the two cases. It is named `coheriq.REFERENCE` (the string `"reference"`), a name `AccelerationEngine` refuses because the domain owns it. `enable_engine(domain, coheriq.REFERENCE)` pins it, which differs from simply not choosing, because an explicit call takes precedence over the domain's environment variable. `coheriq.available_engines(domain)` lists the enableable names, always leading with `"reference"`, so the result is never empty; `coheriq.active_engine(domain)` returns the active name, or `None` while nothing has been resolved yet.
 
-The reference implementation is an engine, not a separate kind of thing: every engine's class inherits from the domain's, and dispatch does not branch on the two cases. It is named `coheriq.REFERENCE` (the string `"reference"`), a name `AccelerationEngine` refuses because the domain owns it. `enable_engine(domain, coheriq.REFERENCE)` pins it, which differs from simply not choosing, because an explicit call takes precedence over the domain's environment variable. `coheriq.available_engines(domain)` lists the enableable names, always leading with `"reference"`, so the result is never empty; `coheriq.active_engine(domain)` returns the active name, or `None` while nothing has been resolved yet.
-
 ### Module layout
 
 `src/coheriq/__init__.py` only re-exports the public API; the implementation is split across:
@@ -102,7 +100,7 @@ Imports run one way: `activation` imports both `domain` and `engine`, and `engin
 
 ### Domain names are module names
 
-A domain's name should be the `__name__` of the package it belongs to; constructing the domain in a submodule is fine, as it is the *name* that must be the top-level package. This is what lets a module stand in for a domain anywhere a domain is accepted, which removes the import-order hazard in the string form: a domain is registered as a side effect of importing its library, so a name can only be resolved after that import, whereas a module cannot be named before it.
+A domain's name should be the `__name__` of the package it belongs to; constructing the domain in a submodule is fine, as the name need only be *an importable module*. This is what lets a module stand in for a domain anywhere a domain is accepted, which removes the import-order hazard in the string form: a domain is registered as a side effect of importing its library, so a name can only be resolved after that import, whereas a module cannot be named before it.
 
 `AccelerationDomain` warns (`CoheriqDomainWarning`) when its name does not resolve to an importable module. The convention is advisory, because a domain defined in a script, a notebook, or a test has no package to name — `docs/demos/diamond_inheritance.ipynb` is a deliberate example, and the test suite filters the warning in `pyproject.toml`. The check runs at construction, so the warning points at the line that passes the name, and it never imports the name it checks.
 

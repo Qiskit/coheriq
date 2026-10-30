@@ -28,8 +28,8 @@ upgrade:
   - |
     A domain's name should now be the ``__name__`` of the package it belongs to,
     so that users can pass that module in place of the name.  Constructing the
-    domain in a submodule is still fine; it is the name that should be the
-    top-level package.
+    domain in a submodule is still fine: the name need only be an importable
+    module.
 
     Earlier guidance described the name loosely as the name of the library,
     without tying it to an importable module.  For most domains the two already
