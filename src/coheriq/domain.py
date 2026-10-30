@@ -20,7 +20,7 @@ from collections.abc import Callable
 from enum import Enum
 from inspect import isclass
 from threading import Lock
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Final
 
 from .exceptions import (
     CoheriqDomainError,
@@ -31,6 +31,23 @@ if TYPE_CHECKING:
 
 _domain_registry_lock = Lock()
 _domain_registry: dict[str, AccelerationDomain] = {}
+
+REFERENCE: Final = "reference"
+"""The name of a domain's own reference implementation.
+
+Every domain has this engine: it is the one built from the implementations the
+domain itself declares, and is the one that goes into effect unless another is enabled.  Pass it
+to :func:`~coheriq.enable_engine` to select it explicitly, and
+:func:`~coheriq.active_engine` reports it when it is active.
+
+It is listed by :func:`~coheriq.available_engines` like any other engine, so it
+is a name the domain owns: :class:`~coheriq.AccelerationEngine` cannot be
+constructed with it.  The whole ``"reference"`` prefix is reserved the same way,
+against a possible future design in which a domain versions its reference
+implementation.
+"""
+
+_RESERVED_ENGINE_NAME_PREFIX: Final = REFERENCE
 
 
 def _get_domain_by_name(name: str) -> AccelerationDomain:
