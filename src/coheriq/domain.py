@@ -36,7 +36,7 @@ REFERENCE: Final = "reference"
 """The name of a domain's own reference implementation.
 
 Every domain has this engine: it is the one built from the implementations the
-domain itself declares, and the one in effect until another is enabled.  Pass it
+domain itself declares, and is the one that goes into effect unless another is enabled.  Pass it
 to :func:`~coheriq.enable_engine` to select it explicitly, and
 :func:`~coheriq.active_engine` reports it when it is active.
 
