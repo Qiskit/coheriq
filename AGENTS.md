@@ -79,6 +79,8 @@ Coheriq is a **dispatch decorator framework** that allows a library (the "domain
 
 The reference implementation is an engine, not a separate kind of thing: every engine's class inherits from the domain's, and dispatch does not branch on the two cases. It is named `coheriq.REFERENCE` (the string `"reference"`), a name `AccelerationEngine` refuses because the domain owns it. `enable_engine(domain, coheriq.REFERENCE)` pins it, which differs from simply not choosing, because an explicit call takes precedence over the domain's environment variable. `coheriq.available_engines(domain)` lists the enableable names, always leading with `"reference"`, so the result is never empty; `coheriq.active_engine(domain)` returns the active name, or `None` while nothing has been resolved yet.
 
+The reference implementation is an engine, not a separate kind of thing: every engine's class inherits from the domain's, and dispatch does not branch on the two cases. It is named `coheriq.REFERENCE` (the string `"reference"`), a name `AccelerationEngine` refuses because the domain owns it. `enable_engine(domain, coheriq.REFERENCE)` pins it, which differs from simply not choosing, because an explicit call takes precedence over the domain's environment variable. `coheriq.available_engines(domain)` lists the enableable names, always leading with `"reference"`, so the result is never empty; `coheriq.active_engine(domain)` returns the active name, or `None` while nothing has been resolved yet.
+
 ### Module layout
 
 `src/coheriq/__init__.py` only re-exports the public API; the implementation is split across:
