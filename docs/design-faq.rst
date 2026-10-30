@@ -195,7 +195,8 @@ and the combination resolves through Python's ordinary method-resolution order:
    coheriq.enable_engine("mylib", "combined")
 
 The compatibility question is then answered explicitly, by someone who chose to
-take it on, in a named engine that can be tested as a unit.
+take it on, in a named engine that the domain's test suite can exercise as a
+unit.
 
 Why must an engine be activated before first use?
 -------------------------------------------------
