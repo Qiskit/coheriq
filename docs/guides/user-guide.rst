@@ -45,11 +45,9 @@ Which engine names are available depends on what you have installed.
    >>> coheriq.available_engines("mylib")
    ('reference', 'mylib-fast')
 
-The first entry is always ``'reference'``, the library's own implementation,
-which is in effect unless you enable something else.  The names after it are the
-acceleration engines you have installed.  Because ``'reference'`` is always
-present, the length of the result is not a count of the engines installed -- a
-library with none installed still reports ``('reference',)``.
+Every library has at least one entry: ``'reference'``, its own implementation.
+In the current version of Coheriq it comes first and is the one you get if you
+enable nothing.  Any other names are acceleration engines you have installed.
 
 Asking this question does not activate anything, and it does not import the
 engine packages it names.  An engine can advertise itself without having been
