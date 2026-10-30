@@ -192,7 +192,9 @@ method-resolution order:
    coheriq.enable_engine("mylib", "combined")
 
 The question is relocated to the author of a named engine, which the domain's
-test suite can exercise as a unit.
+test suite can exercise as a unit. Building one privately is easy enough to be
+worth doing, but it is also a hint that the combination deserves to be published
+as an engine of its own.
 
 Why must an engine be activated before first use?
 -------------------------------------------------
