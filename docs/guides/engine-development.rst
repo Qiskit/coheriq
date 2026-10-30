@@ -86,34 +86,34 @@ any other engine — the composition is only as correct as the pieces and their
 interaction.
 
 
-Put the exactness guarantee in the engine name
-==============================================
+Put a bit-identical guarantee in the engine name
+================================================
 
-Some accelerated implementations reproduce the reference implementation
-bit-for-bit, and some do not — at times within the same codebase, where one kernel
-can be parallelized without changing what is computed or the order in which it
-accumulates, and another cannot.
+Some accelerated implementations are **bit-identical** to the reference
+implementation, and some are not — at times within the same codebase, where one
+kernel can be parallelized without changing what is computed or the order in
+which it accumulates, and another cannot.
 
 You need not pick one bar for everything you ship.  Publish a bit-identical
-engine that accelerates only what stays exact, then publish an expanded engine
-that **inherits** from it and overrides the remaining candidates with faster
-implementations that agree only within a tolerance:
+engine that accelerates only the kernels meeting that bar, then publish an
+expanded engine that **inherits** from it and overrides the remaining
+candidates with faster implementations that agree only within a tolerance:
 
 .. code-block:: python
 
    from coheriq import AccelerationEngine
 
-   # Accelerates only what reproduces the reference implementation exactly.
-   _exact = AccelerationEngine("mylib", "fast-exact")
+   # Accelerates only what reproduces the reference implementation bit for bit.
+   _bitwise = AccelerationEngine("mylib", "fast-bitwise")
 
-   @_exact.override("solve")
+   @_bitwise.override("solve")
    def _solve(...):
        ...
 
-   _exact.materialize()
+   _bitwise.materialize()
 
-   # Inherits that override and adds the ones that give up exactness.
-   _fast = AccelerationEngine("mylib", "fast", [_exact])
+   # Inherits that override and adds the ones that agree only to a tolerance.
+   _fast = AccelerationEngine("mylib", "fast", [_bitwise])
 
    @_fast.override("recover")
    def _recover(...):
@@ -122,12 +122,12 @@ implementations that agree only within a tolerance:
    _fast.materialize()
 
 Prefer inheritance over publishing two independent engines that each implement
-the shared parts.  The expanded engine *is* the exact engine plus further
+the shared parts.  The expanded engine *is* the bit-identical engine plus further
 overrides, so inheriting keeps the shared kernels in one place, where they
 cannot drift apart.
 
 Make the guarantee part of each engine's **name**, so enabling one says what it
-promises: a user who needs reproducibility enables ``fast-exact``, and a user
+promises: a user who needs reproducibility enables ``fast-bitwise``, and a user
 who wants the most acceleration available enables ``fast``.  A guarantee
 attached instead to how the package was built or configured — a thread count, a
 compile flag, an environment variable — is one a user can neither request
@@ -137,7 +137,7 @@ Tuning knobs are a separate matter, and an engine may expose them as it likes.
 Keep them distinct from engine selection, so that adjusting one cannot change
 which guarantee holds.
 
-Document what the exactness claim covers.  It is a claim about particular
+Document what the bit-identical claim covers.  It is a claim about particular
 functions on a particular platform and build, and options affecting
 floating-point contraction or vectorized reduction order can invalidate it.
 
