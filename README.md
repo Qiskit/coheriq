@@ -54,13 +54,7 @@ Engines are ordinary Python classes under the hood, so independently developed e
 
 ## Supported platforms
 
-Coheriq targets Linux, macOS, and Windows, and the unit test suite runs on all
-three.
-
-Each unit test needs a process in which no domain has been materialized yet,
-because materialization is deliberately irreversible. On Linux and macOS that
-isolation comes from `pytest --forked`, which relies on `os.fork()`. Windows
-has no `os.fork()`, so each test runs in a freshly spawned interpreter.
+Coheriq targets Linux, macOS, and Windows.
 
 ## Stability policy
 
