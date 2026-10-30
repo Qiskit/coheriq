@@ -173,20 +173,17 @@ possible, but no simpler.*
 Why can only one engine be active per domain?
 ---------------------------------------------
 
-In Coheriq's model, a domain runs at most one engine at a time.
+In Coheriq's model, a domain runs at most one engine at a time. If several could
+be active at once, somebody would have to decide which combinations work
+together. That question is genuinely hard — two engines may each replace an
+overlapping set of candidates, assume incompatible data representations, or
+expect exclusive use of a device. The user is the party least equipped to answer
+it, having typically written neither engine, and simultaneous activation would
+put the question to them every time they install a second engine.
 
-If several could be active at once, somebody would have to decide which
-combinations work together. That question is genuinely hard — two engines may
-each replace an overlapping set of candidates, assume incompatible data
-representations, or expect exclusive use of a device. The user is the party
-least equipped to answer it, having typically written neither engine, and
-simultaneous activation would put the question to them every time they install
-a second engine. Allowing only one engine does not make the question go away;
-it moves it to whoever deliberately combines two.
-
-That is the escape hatch. A user who wants implementations from two engines can
-build an engine that inherits from both, and the combination resolves through
-Python's ordinary method-resolution order:
+A user who wants implementations from two engines can build an engine that
+inherits from both, and the combination resolves through Python's ordinary
+method-resolution order:
 
 .. code-block:: python
 
