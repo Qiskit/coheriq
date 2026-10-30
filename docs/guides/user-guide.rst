@@ -46,11 +46,10 @@ Which engine names are available depends on what you have installed.
    ('reference', 'mylib-fast')
 
 The first entry is always ``'reference'``, the library's own implementation,
-which every domain has and which is in effect until you enable something else.
-The names after it are the acceleration engines you have installed.  Because
-``'reference'`` is always listed, the length of this list is not a count of the
-accelerators available -- a library with no engines installed still reports
-``('reference',)``.
+which is in effect unless you enable something else.  The names after it are the
+acceleration engines you have installed.  Because ``'reference'`` is always
+present, the length of the result is not a count of the engines installed -- a
+library with none installed still reports ``('reference',)``.
 
 Asking this question does not activate anything, and it does not import the
 engine packages it names.  An engine can advertise itself without having been

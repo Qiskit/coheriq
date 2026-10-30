@@ -143,7 +143,7 @@ def available_engines(domain: str | AccelerationDomain, /) -> tuple[str, ...]:
     implementation, which is listed first; the remaining engines follow in
     alphabetical order.  Because the reference implementation is always present,
     the result is never empty, and its length is therefore not a count of the
-    accelerators installed.
+    engines installed.
 
     Besides the reference implementation, this reports both engines that have
     already been registered (because their module has been imported) and engines
@@ -165,7 +165,7 @@ def available_engines(domain: str | AccelerationDomain, /) -> tuple[str, ...]:
     # arguments to enable_engine(), which loads the plugin on demand.
     names.update(ep.name for ep in entry_points(group=f"coheriq.engines.{domain_._name}"))
     # The reference implementation leads the list because it is the one engine
-    # every domain has and the one in effect until another is enabled.  A future
+    # every domain has and the one in effect unless another is enabled.  A future
     # priority mechanism would order the rest around it rather than after it.
     names.discard(REFERENCE)
     return (REFERENCE, *sorted(names))
