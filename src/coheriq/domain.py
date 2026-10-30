@@ -76,18 +76,24 @@ def _module_is_findable(name: str) -> bool:
 def _warn_if_name_is_not_a_module(name: str) -> None:
     """Warn if ``name`` does not name an importable module.
 
-    A domain's name should be the ``__name__`` of the package it belongs to, so
+    A domain's name should be the ``__name__`` of the module it belongs to, so
     that users can pass the module itself wherever a domain is expected.  This
-    is a convention rather than a requirement: it is only ever a warning, since
-    a domain defined in a script, a notebook, or a test has no package to name.
+    is the name the library is *imported* under, which is not always the name it
+    is distributed under: a project published as ``my-lib`` and imported as
+    ``my_lib`` should have a domain name of ``my_lib``.
+
+    This is a convention rather than a requirement: it is only ever a warning,
+    since a domain defined in a script, a notebook, or a test has no module to
+    be named after.
     """
     if _module_is_findable(name):
         return
     warnings.warn(
         f"Domain name '{name}' does not name an importable module.  A domain's "
-        f"name should be the __name__ of the package it belongs to, which lets "
-        f"users pass that module to coheriq.enable_engine() instead of repeating "
-        f"its name as a string.",
+        f"name should be a module's __name__ -- the name the library is imported "
+        f"under, which is not always the name it is distributed under -- so that "
+        f"users can pass that module to coheriq.enable_engine() instead of "
+        f"repeating its name as a string.",
         CoheriqDomainWarning,
         stacklevel=3,
     )
@@ -97,7 +103,7 @@ def _domain_name_from_module(module: ModuleType, /) -> str:
     """Return the domain name a module stands in for.
 
     Resolution is by name: the convention is that a domain is named after the
-    package it belongs to, so the module's ``__name__`` is the lookup key.  No
+    module it belongs to, so the module's ``__name__`` is the lookup key.  No
     separate record of which module defined a domain is kept, which keeps the
     convention the single source of truth.
     """
@@ -116,31 +122,26 @@ def _domain_name_of(domain: str | ModuleType | AccelerationDomain, /) -> str | N
 
 
 def _domain_not_found_message(name: str) -> str:
-    """Explain that no domain named ``name`` is registered, and suggest why.
+    """Report that no domain named ``name`` is registered, with what is known.
 
-    A domain is registered as a side effect of importing the library that
-    defines it, so the overwhelmingly likely cause is that the library has not
-    been imported yet.  Checking whether the name is importable distinguishes
-    that from a misspelling, which otherwise produce the same bare message.
+    Strictly what has been observed: whether a module of that name is imported
+    or merely installed, and which domains are registered.  Finding a module
+    says nothing about whether it defines a domain, so nothing here tells the
+    caller what to do about it -- only how coheriq registers domains at all,
+    which is the fact they may be missing.
     """
     message = f"No domain named '{name}' has been registered"
     if name in sys.modules:
         return f"{message}.  Module '{name}' is imported but defines no domain of that name."
     if _module_is_findable(name):
         return (
-            f"{message}.  A module named '{name}' is installed but has not been "
-            f"imported, and importing it is what registers the domain.  Import "
-            f"it first, and consider passing the module itself instead of its "
-            f"name, which makes the ordering impossible to get wrong."
+            f"{message}.  A module named '{name}' is installed but not imported. "
+            f"A domain is registered when the module defining it is imported."
         )
     registered = known_domains()
     if registered:
         return f"{message}.  Registered domains: {', '.join(registered)}"
-    return (
-        f"{message}, and no domains are registered at all.  A domain is "
-        f"registered by importing the library that defines it, so the library "
-        f"this name refers to has probably not been imported yet."
-    )
+    return f"{message}; no domains are registered at all."
 
 
 def _resolve_domain(

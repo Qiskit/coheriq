@@ -460,7 +460,8 @@ has already happened — a precondition invisible in the call itself, and one th
 produced a puzzling "no domain named 'mylib'" error when it was violated.
 Passing the module makes the precondition unstatable: the module cannot be
 named before it has been imported. Resolution is by name, which is why a
-domain's name should be the ``__name__`` of the package it belongs to.
+domain's name should be the ``__name__`` of the module it belongs to —
+which may differ from the name of the package it is distributed under.
 
 Why is the ``__name__`` convention only a warning?
 ---------------------------------------------------
