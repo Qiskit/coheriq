@@ -618,10 +618,10 @@ class TestEngineDiamondInheritance:
 
 
 class TestDomainNameConvention:
-    """A domain's name should be the ``__name__`` of the package it belongs to.
+    """A domain's name should be the ``__name__`` of the module it belongs to.
 
     The convention is advisory: violating it warns and nothing more, because a
-    domain defined in a script, a notebook, or a test has no package to name.
+    domain defined in a script, a notebook, or a test has no module to be named after.
     """
 
     def test_warns_when_name_is_not_an_importable_module(self):
@@ -739,14 +739,16 @@ class TestDomainAsModule:
 
 
 class TestDomainNotFoundMessage:
-    """The failure explains import order, which is the overwhelmingly likely cause."""
+    """The failure reports what is known, without guessing at the cause."""
 
-    def test_importable_but_unimported_name_suggests_importing_it(self):
+    def test_message_distinguishes_installed_from_unknown(self):
+        # Finding a module says nothing about whether it defines a domain, so
+        # the message reports only that the module exists and is unimported.
         name = "coheriq.activation"
         assert name in sys.modules
         del sys.modules[name]
         try:
-            with pytest.raises(CoheriqDomainNotFoundError, match="has not been imported"):
+            with pytest.raises(CoheriqDomainNotFoundError, match="is installed but not imported"):
                 enable_engine(name, "fast")
         finally:
             importlib.import_module(name)

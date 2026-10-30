@@ -74,18 +74,24 @@ def _module_is_findable(name: str) -> bool:
 def _warn_if_name_is_not_a_module(name: str) -> None:
     """Warn if ``name`` does not name an importable module.
 
-    A domain's name should be the ``__name__`` of the package it belongs to, so
+    A domain's name should be the ``__name__`` of the module it belongs to, so
     that users can pass the module itself wherever a domain is expected.  This
-    is a convention rather than a requirement: it is only ever a warning, since
-    a domain defined in a script, a notebook, or a test has no package to name.
+    is the name the library is *imported* under, which is not always the name it
+    is distributed under: a project published as ``my-lib`` and imported as
+    ``my_lib`` should have a domain name of ``my_lib``.
+
+    This is a convention rather than a requirement: it is only ever a warning,
+    since a domain defined in a script, a notebook, or a test has no module to
+    be named after.
     """
     if _module_is_findable(name):
         return
     warnings.warn(
         f"Domain name '{name}' does not name an importable module.  A domain's "
-        f"name should be the __name__ of the package it belongs to, which lets "
-        f"users pass that module to coheriq.enable_engine() instead of repeating "
-        f"its name as a string.",
+        f"name should be a module's __name__ -- the name the library is imported "
+        f"under, which is not always the name it is distributed under -- so that "
+        f"users can pass that module to coheriq.enable_engine() instead of "
+        f"repeating its name as a string.",
         CoheriqDomainWarning,
         stacklevel=3,
     )
@@ -95,7 +101,7 @@ def _domain_name_from_module(module: ModuleType, /) -> str:
     """Return the domain name a module stands in for.
 
     Resolution is by name: the convention is that a domain is named after the
-    package it belongs to, so the module's ``__name__`` is the lookup key.  No
+    module it belongs to, so the module's ``__name__`` is the lookup key.  No
     separate record of which module defined a domain is kept, which keeps the
     convention the single source of truth.
     """
