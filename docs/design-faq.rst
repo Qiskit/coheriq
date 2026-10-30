@@ -508,8 +508,8 @@ who wrote it or how fast it is. The reference implementation satisfies that
 description. It is the unit the domain itself supplies.
 
 It is called the *reference* implementation rather than the *default* one
-because "default" is a status, and statuses change. If a domain ever ships an
-engine used by default, the reference implementation is still the reference
+because "default" is a status, and statuses change. If a domain ever ships another
+engine that is used by default, the reference implementation is still the reference
 implementation.
 
 Two consequences:
@@ -526,22 +526,12 @@ Two consequences:
 Why can the reference implementation be enabled explicitly?
 -----------------------------------------------------------
 
-Declining to choose an engine and choosing the reference implementation look the
-same from the outside -- both end with the reference implementation active --
-but they are not the same instruction, because an environment variable can
-override the first and must not override the second.
+The difference is precedence.  Enabling nothing lets the domain's environment
+variable choose, which is the point of the variable; an explicit call overrides
+it.  So a test that must run against the reference implementation, whatever the
+surrounding environment sets, has to be able to name it.
 
-A user who sets no environment variable and enables nothing gets the reference
-implementation by omission. A user whose environment has ``MYLIB_ENGINE`` set
-gets whatever that names, which is the point of the variable. Someone who needs
-the reference implementation *regardless* of the surrounding environment -- a
-researcher comparing against it, someone debugging a suspected engine bug, a
-test pinning known-good behavior -- has to be able to say so, and silence cannot
-say it.
-
-``enable_engine(domain, coheriq.REFERENCE)`` is that statement, and it follows
-the same precedence rule as any other explicit activation: the explicit call
-wins over the environment variable.
+``enable_engine(domain, coheriq.REFERENCE)`` is how it is named.
 
 Why ``Domain``?
 ---------------
