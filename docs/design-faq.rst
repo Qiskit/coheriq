@@ -191,8 +191,8 @@ method-resolution order:
    combined.materialize()
    coheriq.enable_engine("mylib", "combined")
 
-The question is then answered by the author of a named engine, which the
-domain's test suite can exercise as a unit.
+The question is relocated to the author of a named engine, which the domain's
+test suite can exercise as a unit.
 
 Why must an engine be activated before first use?
 -------------------------------------------------
