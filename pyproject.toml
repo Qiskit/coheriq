@@ -132,7 +132,7 @@ enable = [
 
 [tool.pytest.ini_options]
 testpaths = ["./src/", "./test/"]
-addopts = "--ignore=test/coverage_startup"
+addopts = "--ignore=test/coverage_startup --ignore=test/spawn_isolation"
 
 [tool.ruff]
 line-length = 100

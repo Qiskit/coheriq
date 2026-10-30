@@ -29,11 +29,13 @@ jobs:
             python-version: "3.15"
             toxenv: "py,notebook,doctest,ragged,ragged-engine"
           # The py and doctest envs use `pytest --forked`, which needs os.fork()
-          # and cannot run on Windows. The remaining envs run in-process, so they
-          # exercise real dispatch (and the notebooks) on Windows.
+          # and cannot run on Windows. The spawn envs give the same per-test
+          # isolation by starting a fresh interpreter instead, so Windows does
+          # get the registry-dependent unit tests and their coverage; the rest
+          # run in-process.
           - os: windows-latest
             python-version: "3.15"
-            toxenv: "notebook,ragged,ragged-engine"
+            toxenv: "py-spawn,coverage-spawn,notebook,ragged,ragged-engine"
     steps:
       - uses: actions/checkout@v7
       - name: Set up Python ${{ matrix.python-version }}
