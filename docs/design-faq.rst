@@ -347,10 +347,17 @@ In practice:
   question on threads and fork <faq-threads-and-fork>` for the
   activate-then-fork worker pattern.
 
-Exact agreement is a stronger bar than a tolerance and makes any regression
-unmissable, but it can be fragile: achieving it means pinning the things that
-perturb floating-point results, such as FMA contraction and the order of
-vectorized reductions.
+**How close an agreement to aim for is the engine author's call.** A drop-in
+replacement meant to be bit-compatible is one target, and exact agreement makes
+any regression unmissable. The other is to take whatever speed is available and
+accept that it moves the last bits: vectorizing a reduction, blocking a loop, or
+calling a different BLAS all reorder the arithmetic as a side effect. Aiming for
+bit-identity means controlling what reaches those bits, FMA contraction and
+reduction order among them.
+
+Either way, the domain's test suite should pass. A domain suite is meant to
+assert invariants and tolerances so that it can run against any correct engine;
+see :ref:`write-robust-tests`, which covers this from the domain side.
 
 
 API shape
