@@ -95,11 +95,10 @@ user realistically needs to do.
 One engine per domain
     A domain can have at most one engine enabled at a time.  This keeps the
     question of which engines are mutually compatible away from the user, who
-    usually wrote none of them: whichever engine is active was designed as a
-    consistent whole by one author.  Combining engines is still possible, but
-    it is done deliberately by building an engine that inherits from them (see
-    :ref:`below <overview-composition>`) rather than by activating several at
-    once.
+    typically wrote none of them: whichever engine is active was designed as a
+    consistent whole by one author.  Combining engines is still done
+    deliberately, by building one that inherits from them (see
+    :ref:`below <overview-composition>`).
 
 Process-global
     Activation applies to the whole process.  It is unlikely that different

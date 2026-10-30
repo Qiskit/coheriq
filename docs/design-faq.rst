@@ -173,23 +173,20 @@ possible, but no simpler.*
 Why can only one engine be active per domain?
 ---------------------------------------------
 
-A domain runs at most one engine at a time, and the reason is about whose
-problem compatibility becomes.
+A domain runs at most one engine at a time.
 
-If several engines could be active at once, somebody would have to decide which
+If several could be active at once, somebody would have to decide which
 combinations work together. That question is genuinely hard — two engines may
 each replace an overlapping set of candidates, assume incompatible data
-representations, or expect exclusive use of a device — and the person least
-equipped to answer it is the user, who typically did not write either engine.
-Allowing simultaneous activation would hand them that burden by default, every
-time they install a second engine. Allowing only one means the question never
-arises: whatever engine is active, its world is internally consistent because
-one author designed it that way.
+representations, or expect exclusive use of a device. The user is the party
+least equipped to answer it, having typically written neither engine, and
+simultaneous activation would hand them that question every time they install a
+second one. Allowing only one means it never arises: whichever engine is active
+was designed as a consistent whole by one author.
 
-This is a restriction on what activation does, not on what is achievable. A user
-who does want implementations from two engines can build an engine that inherits
-from both, and the combination resolves through Python's ordinary
-method-resolution order:
+This restricts what activation does, not what is achievable. A user who wants
+implementations from two engines can build an engine that inherits from both,
+and the combination resolves through Python's ordinary method-resolution order:
 
 .. code-block:: python
 
@@ -197,11 +194,8 @@ method-resolution order:
    combined.materialize()
    coheriq.enable_engine("mylib", "combined")
 
-The difference is that the compatibility question is now answered explicitly, by
-someone who chose to take it on, in a named engine that can be tested as a unit.
-Nothing stops that engine from being a bad idea — this is enough rope to hang
-yourself with — but the user has to ask for it, and what they get is one
-coherent implementation rather than an ambiguous runtime blend.
+The compatibility question is then answered explicitly, by someone who chose to
+take it on, in a named engine that can be tested as a unit.
 
 Why must an engine be activated before first use?
 -------------------------------------------------
