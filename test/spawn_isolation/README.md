@@ -37,7 +37,8 @@ Two constraints motivated the look:
 ## Status
 
 Added as extra envs, not as a replacement.  `--forked` stays the default on
-POSIX: it is ~10x faster and is what the `py`/`doctest`/`coverage` envs use.
+POSIX: it is roughly an order of magnitude faster and is what the
+`py`/`doctest`/`coverage` envs use.
 
     tox -e py-spawn         # unit tests, one fresh interpreter per test
     tox -e coverage-spawn   # same, with coverage (81%, matches forked)
