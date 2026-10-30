@@ -472,7 +472,7 @@ that module, so Coheriq warns
 name. It is a warning rather than an error because a domain defined in a
 script, a notebook, or a test has no package to be named after, and those
 domains are legitimate — the demonstration notebooks in this repository define
-a domain and an engine in one file, which no package name could describe. Such
+a domain and an engine in one file, which no module name could describe. Such
 a domain works normally; its users just pass its name as a string to
 :func:`~coheriq.enable_engine`.
 
