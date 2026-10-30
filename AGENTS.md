@@ -47,7 +47,7 @@ tox -e docs
 
 The `py`, `coverage`, and `doctest` tox environments run pytest with `--forked`, so each test runs in a subprocess. This is necessary because `AccelerationDomain` and `AccelerationEngine` use a global registry that cannot otherwise be reset between tests. `--forked` is set per-environment (in `tox.ini`), not in `pyproject.toml`, so if you invoke pytest directly on `test/` rather than through tox you must pass `--forked` yourself.
 
-`--forked` relies on `os.fork()` and so does not run on Windows. The `py-spawn` and `coverage-spawn` envs cover that gap by spawning a fresh interpreter per test instead of forking. The plugin behind them lives at `test/spawn_isolation/`, alongside the vendored `pytest-forked` in `test/coverage_startup/`. Both directories are excluded from collection via `addopts`, which `testpaths = ./test/` makes necessary.
+`--forked` relies on `os.fork()` and so does not run on Windows. The `py-spawn` and `coverage-spawn` envs cover that gap by spawning a fresh interpreter per test instead of forking. The plugin behind them lives at `test/spawn_isolation/`, alongside the vendored `pytest-forked` in `test/coverage_startup/`. Both directories are named in `addopts` as `--ignore`, following the existing convention; neither holds a file matching `test_*.py`, so nothing in them is collected either way.
 
 Neither spawn env is in `envlist`, so a bare `tox` does not run them. `--forked` remains the default on POSIX because it is roughly an order of magnitude faster. The Windows CI job's `toxenv` lists which envs run there.
 
