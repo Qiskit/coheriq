@@ -47,11 +47,6 @@ against a possible future design in which a domain versions its reference
 implementation.
 """
 
-# Engine names beginning with this prefix are the domain's to define, so a
-# third-party engine cannot claim one.  The prefix rather than just REFERENCE is
-# reserved so that adding a name under it later is not a compatibility break for
-# an engine that had taken it.  Nothing can supply such an implementation today;
-# this holds the namespace open for a design that versions it.
 _RESERVED_ENGINE_NAME_PREFIX: Final = REFERENCE
 
 
