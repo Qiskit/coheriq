@@ -69,7 +69,8 @@ Domain (the library)
     The library that owns the functionality.  It creates an
     :class:`~coheriq.AccelerationDomain`, marks functions and classes with the
     ``@domain.acceleration_candidate`` decorator, and calls
-    ``domain.materialize()`` to lock in its reference implementation.  See the
+    ``domain.materialize()`` to lock in its reference implementation, the engine
+    named :data:`~coheriq.REFERENCE`.  See the
     :doc:`domain developer guide <../guides/domain-development>`.
 
 Engine (the accelerator)
@@ -78,13 +79,6 @@ Engine (the accelerator)
     named domain, marks its replacements with ``@engine.override``, calls
     ``engine.materialize()``, and advertises its existence via Python entry points.  See the
     :doc:`engine developer guide <../guides/engine-development>`.
-
-    These three are *roles*, not necessarily three separate packages.  The
-    implementations a domain declares itself form an engine too -- the
-    **reference implementation**, named :data:`~coheriq.REFERENCE` -- which is
-    the one in effect when no other has been enabled.  Third-party engines are
-    defined relative to it, and the :doc:`design FAQ <../design-faq>` explains
-    why it counts as an engine rather than a separate kind of thing.
 
 User (the caller)
     Application code that uses the library.  The user activates an engine once
