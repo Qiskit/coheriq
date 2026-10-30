@@ -93,7 +93,9 @@ restriction removes a class of failure mode rather than limiting anything a
 user realistically needs to do.
 
 One engine per domain
-    A domain can have at most one engine enabled at a time.
+    A domain can have at most one engine enabled at a time.  This keeps the
+    question of which engines are mutually compatible away from the user, who
+    typically wrote none of them.
 
 Process-global
     Activation applies to the whole process.  It is unlikely that different
