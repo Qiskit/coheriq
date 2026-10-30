@@ -559,9 +559,18 @@ class TestReservedEngineNames:
         with pytest.raises(CoheriqEngineError, match="reserved"):
             AccelerationEngine("foo", "reference")
 
+    def test_reserved_prefix_rejected_as_engine_name(self):
+        # The whole prefix is reserved, not just REFERENCE itself, so that a
+        # name added under it later is not a compatibility break for an engine
+        # that had taken it.
+        AccelerationDomain("foo").materialize()
+        for name in ("reference2", "reference-v2", "references"):
+            with pytest.raises(CoheriqEngineError, match="reserved"):
+                AccelerationEngine("foo", name)
+
     def test_reserved_name_check_is_case_sensitive(self):
-        # Only the exact reserved spelling is refused; matching is exact, as it
-        # is everywhere else a name is looked up.
+        # The prefix is matched case-sensitively, as names are everywhere else
+        # they are looked up.
         domain = AccelerationDomain("foo")
         domain.acceleration_candidate(f)
         domain.materialize()

@@ -61,4 +61,6 @@ features:
 
     Because ``"reference"`` names an engine that every domain owns, it cannot be
     claimed by a third-party engine; :class:`~coheriq.AccelerationEngine` rejects
-    it.
+    it.  Names beginning with ``"reference"`` are refused on the same grounds,
+    reserving the prefix against a possible future design in which a domain
+    versions its reference implementation.

@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from typing_extensions import Self
 
-from .domain import _RESERVED_ENGINE_NAMES, _DomainState, _get_domain_by_name
+from .domain import _RESERVED_ENGINE_NAME_PREFIX, _DomainState, _get_domain_by_name
 from .exceptions import (
     CoheriqEngineError,
     CoheriqEngineInheritanceError,
@@ -53,9 +53,11 @@ class AccelerationEngine:
             raise CoheriqEngineError("engine name must be a string")
         if not engine_name:
             raise CoheriqEngineError("engine name cannot be empty")
-        if engine_name in _RESERVED_ENGINE_NAMES:
+        if engine_name.startswith(_RESERVED_ENGINE_NAME_PREFIX):
             raise CoheriqEngineError(
-                f"engine name '{engine_name}' is reserved for the domain's own use"
+                f"engine name '{engine_name}' is reserved for the domain's own use: "
+                f"names beginning with '{_RESERVED_ENGINE_NAME_PREFIX}' cannot be "
+                f"claimed by an engine"
             )
         self._state = _EngineState.CONSTRUCTING
         self._domain_name = domain_name
