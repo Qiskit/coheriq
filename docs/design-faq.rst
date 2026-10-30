@@ -222,12 +222,12 @@ eliminates a whole category of "how did I get into this state?" bugs and does
 not meaningfully restrict what a user can accomplish — to use a different
 engine, start a new process.
 
-Note that "one-way" governs transitions, not which engine is chosen.  Selecting
-the reference implementation explicitly (see :ref:`faq-enable-reference`) is a
-transition *forward* into a settled state, and rules the other engines out in
-exactly the way enabling any engine rules out the rest.  What the contract
-forbids is leaving a settled state once reached, so pinning the reference
-implementation is permitted while disabling an active engine is not.
+"One-way" governs transitions, not which engine is chosen.  Selecting the
+reference implementation explicitly (see :ref:`faq-enable-reference`) is a
+transition *forward* into a settled state, ruling out the other engines exactly
+as enabling any engine does.  What the contract forbids is leaving a settled
+state once reached: pinning the reference implementation cannot undo an engine
+that is already active.
 
 .. _faq-process-global:
 
@@ -496,25 +496,23 @@ it pairs symmetrically with ``AccelerationDomain``.
 Is the reference implementation an engine?
 ------------------------------------------
 
-Yes, and the machinery has always treated it that way. When a domain
-materializes, Coheriq builds a class from its candidates; when an engine
-materializes, it builds a class that *inherits from that one*. The reference
-implementation is therefore the root of the engine inheritance graph rather than
-a separate kind of thing beside it. Dispatch does not branch on which case
-applies: resolving a call reads an attribute off whichever class is active.
+Yes. When a domain materializes, Coheriq builds a class from its candidates;
+when an engine materializes, it builds a class that *inherits from that one*.
+The reference implementation is therefore the root of the engine inheritance
+graph. Dispatch does not branch on which case applies: resolving a call reads an
+attribute off whichever class is active.
 
 The word "engine" in this documentation describes **what is substituted** -- a
 coherent unit of behavior, state, and invariants, chosen as a whole -- and not
 who wrote it or how fast it is. The reference implementation satisfies that
-description. It is the unit the domain itself supplies, and the one every other
-engine is defined relative to.
+description. It is the unit the domain itself supplies.
 
 It is called the *reference* implementation rather than the *default* one
 because "default" is a status, and statuses change. If a domain ever ships an
 engine used by default, the reference implementation is still the reference
 implementation.
 
-Two consequences follow:
+Two consequences:
 
 - The reference implementation has a name, :data:`~coheriq.REFERENCE` (the
   string ``"reference"``).  :func:`~coheriq.available_engines` lists it and
@@ -544,11 +542,6 @@ say it.
 ``enable_engine(domain, coheriq.REFERENCE)`` is that statement, and it follows
 the same precedence rule as any other explicit activation: the explicit call
 wins over the environment variable.
-
-This does not weaken the one-way contract. Pinning the reference implementation
-is a forward transition that rules out the other engines, exactly as enabling
-any engine rules out the rest; it is not a reset, and it cannot undo an engine
-that is already active.
 
 Why ``Domain``?
 ---------------
