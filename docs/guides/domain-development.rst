@@ -99,18 +99,42 @@ Activation needs nothing from you
 
 You do **not** need to expose an activation function of your own.  Users
 activate an engine with Coheriq's :func:`~coheriq.enable_engine`, passing your
-domain name:
+library itself:
 
 .. code-block:: python
 
    import coheriq
+   import mylib
 
-   coheriq.enable_engine("mylib", "fast-engine")
+   coheriq.enable_engine(mylib, "fast-engine")
 
-The domain name is the only identifier a user needs, and the call is the same
-for every Coheriq library — so you have nothing to re-export and nothing extra
-to document.  You can simply point your users at Coheriq's own
+Your package is the only identifier a user needs, and the call is the same for
+every Coheriq library — so you have nothing to re-export and nothing extra to
+document.  You can simply point your users at Coheriq's own
 :doc:`user guide <user-guide>`.
+
+.. _name-the-domain-after-the-package:
+
+Name the domain after your package
+----------------------------------
+
+For the call above to work, the domain's name must be the ``__name__`` of the
+package it belongs to:
+
+.. code-block:: python
+
+   # In mylib/_acceleration.py
+   _domain = AccelerationDomain("mylib")
+
+Constructing the domain in a submodule is fine, and is the usual arrangement;
+it is the *name* that must be the top-level package.  Coheriq issues a
+:exc:`~coheriq.CoheriqDomainWarning` if the name does not resolve to an
+importable module, since a user who passes the module would then get a
+confusing lookup failure.
+
+This is a convention rather than a requirement, because a domain defined in a
+script, a notebook, or a test has no package to be named after.  Such a domain
+works normally; only the module form of the call is unavailable to it.
 
 Opting into environment-variable activation
 -------------------------------------------

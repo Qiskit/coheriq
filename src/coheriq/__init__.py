@@ -20,12 +20,14 @@ from .engine import AccelerationEngine
 from .exceptions import (
     CoheriqDomainError,
     CoheriqDomainNotFoundError,
+    CoheriqDomainWarning,
     CoheriqEngineError,
     CoheriqEngineInheritanceError,
     CoheriqEngineNotFoundError,
     CoheriqError,
     CoheriqLibraryError,
     CoheriqUserError,
+    CoheriqWarning,
 )
 
 __all__ = [
@@ -34,12 +36,14 @@ __all__ = [
     "AccelerationEngine",
     "CoheriqDomainError",
     "CoheriqDomainNotFoundError",
+    "CoheriqDomainWarning",
     "CoheriqEngineError",
     "CoheriqEngineInheritanceError",
     "CoheriqEngineNotFoundError",
     "CoheriqError",
     "CoheriqLibraryError",
     "CoheriqUserError",
+    "CoheriqWarning",
     "active_engine",
     "available_engines",
     "enable_engine",

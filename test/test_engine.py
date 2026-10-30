@@ -10,9 +10,14 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
+import importlib
+import sys
+import warnings
 from importlib.metadata import EntryPoint
 from unittest import mock
 
+import coheriq
+import coheriq.domain as domain_module
 import pytest
 from coheriq import (
     REFERENCE,
@@ -20,8 +25,10 @@ from coheriq import (
     AccelerationEngine,
     CoheriqDomainError,
     CoheriqDomainNotFoundError,
+    CoheriqDomainWarning,
     CoheriqEngineError,
     CoheriqEngineNotFoundError,
+    CoheriqWarning,
     activation,
     active_engine,
     available_engines,
@@ -592,3 +599,149 @@ class TestEngineDiamondInheritance:
 
 # FIXME:
 # - ensure that multiple domains don't interfere
+
+
+class TestDomainNameConvention:
+    """A domain's name should be the ``__name__`` of the package it belongs to.
+
+    The convention is advisory: violating it warns and nothing more, because a
+    domain defined in a script, a notebook, or a test has no package to name.
+    """
+
+    def test_warns_when_name_is_not_an_importable_module(self):
+        with pytest.warns(CoheriqDomainWarning, match="does not name an importable module"):
+            AccelerationDomain("not_an_importable_module_xyz")
+
+    def test_no_warning_when_name_is_an_importable_module(self):
+        # ``coheriq`` is necessarily importable, since this test imports it.
+        with warnings.catch_warnings():
+            # "error" overrides the suite-wide ignore, so a warning here fails.
+            warnings.simplefilter("error", CoheriqWarning)
+            AccelerationDomain("coheriq")
+
+    def test_no_warning_for_a_module_not_yet_imported(self):
+        # Findability, not prior import, is what the convention requires: a
+        # domain is normally constructed while its own package is still being
+        # imported.
+        name = "coheriq.activation"
+        assert name in sys.modules
+        del sys.modules[name]
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("error", CoheriqWarning)
+                AccelerationDomain(name)
+        finally:
+            importlib.import_module(name)
+
+    @pytest.mark.parametrize("name", ["my lib", "foo..bar", ".foo", "foo.", "foo-bar"])
+    def test_warns_for_a_name_that_cannot_be_a_module(self, name):
+        # These are screened out before ``find_spec`` is consulted, since a
+        # dotted name with an unimportable parent makes it raise.
+        with pytest.warns(CoheriqDomainWarning):
+            AccelerationDomain(name)
+
+    def test_empty_name_still_raises(self):
+        # The pre-existing error takes precedence over the convention warning.
+        with pytest.raises(CoheriqDomainError, match="cannot be empty"):
+            AccelerationDomain("")
+
+    def test_warning_is_filterable_through_the_hierarchy(self):
+        for category in (CoheriqDomainWarning, CoheriqWarning, UserWarning):
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always", CoheriqDomainWarning)
+                warnings.simplefilter("ignore", category)
+                AccelerationDomain(f"unimportable_{category.__name__}")
+            assert not caught, f"not suppressed by filtering on {category.__name__}"
+
+    def test_warning_derives_from_user_warning(self):
+        assert issubclass(CoheriqDomainWarning, CoheriqWarning)
+        assert issubclass(CoheriqWarning, UserWarning)
+
+    def test_a_finder_that_raises_does_not_break_construction(self):
+        # The check only ever informs a warning, so a misbehaving finder must
+        # not be allowed to propagate out of AccelerationDomain().
+        with (
+            mock.patch.object(
+                domain_module.importlib.util, "find_spec", side_effect=ImportError("boom")
+            ),
+            pytest.warns(CoheriqDomainWarning),
+        ):
+            domain = AccelerationDomain("coheriq")
+        assert domain._name == "coheriq"
+
+
+class TestDomainAsModule:
+    """A module may stand in for the domain it is named after."""
+
+    @pytest.fixture
+    def coheriq_domain(self):
+        domain = AccelerationDomain("coheriq")
+        domain.materialize()
+        return domain
+
+    def test_enable_engine_accepts_a_module(self, coheriq_domain):
+        AccelerationEngine(coheriq_domain, "fast").materialize()
+        enable_engine(coheriq, "fast")
+        assert active_engine(coheriq) == "fast"
+
+    def test_available_engines_accepts_a_module(self, coheriq_domain):
+        AccelerationEngine(coheriq_domain, "fast").materialize()
+        assert available_engines(coheriq) == (REFERENCE, "fast")
+
+    def test_active_engine_accepts_a_module(self, coheriq_domain):
+        assert active_engine(coheriq_domain) is None
+        enable_engine(coheriq, REFERENCE)
+        assert active_engine(coheriq) == REFERENCE
+
+    def test_engine_construction_accepts_a_module(self, coheriq_domain):
+        engine = AccelerationEngine(coheriq, "fast")
+        assert engine._domain is coheriq_domain
+
+    def test_module_and_name_resolve_to_the_same_domain(self, coheriq_domain):
+        assert activation._resolve_domain(coheriq) is coheriq_domain
+        assert activation._resolve_domain("coheriq") is coheriq_domain
+
+    def test_a_submodule_does_not_resolve_to_its_parent(self, coheriq_domain):
+        # Resolution is by name only; walking up the dotted path would hide the
+        # mistake instead of teaching the convention.
+        assert coheriq_domain is activation._resolve_domain(coheriq)
+        with pytest.raises(CoheriqDomainNotFoundError, match="top-level package"):
+            enable_engine(activation, "fast")
+
+    @pytest.mark.parametrize("bad", [42, None, [], f])
+    def test_a_non_module_non_name_raises_type_error(self, bad):
+        with pytest.raises(TypeError, match="must be an AccelerationDomain, a module"):
+            enable_engine(bad, "fast")
+
+    def test_engine_construction_rejects_a_non_module_non_name(self, coheriq_domain):
+        assert coheriq_domain._name == "coheriq"
+        with pytest.raises(
+            CoheriqEngineError, match="must be an AccelerationDomain, a module, or the name of"
+        ):
+            AccelerationEngine(42, "fast")
+
+
+class TestDomainNotFoundMessage:
+    """The failure explains import order, which is the overwhelmingly likely cause."""
+
+    def test_importable_but_unimported_name_suggests_importing_it(self):
+        name = "coheriq.activation"
+        assert name in sys.modules
+        del sys.modules[name]
+        try:
+            with pytest.raises(CoheriqDomainNotFoundError, match="has not been imported"):
+                enable_engine(name, "fast")
+        finally:
+            importlib.import_module(name)
+
+    def test_message_mentions_registered_domains(self, domain_name):
+        with pytest.raises(CoheriqDomainNotFoundError, match=f"Registered domains: {domain_name}"):
+            enable_engine(domain_name[:-1], "fast")
+
+    def test_message_when_nothing_is_registered(self):
+        with pytest.raises(CoheriqDomainNotFoundError, match="no domains are registered at all"):
+            enable_engine("nonexistent_package_xyz", "fast")
+
+    def test_imported_module_that_defines_no_domain(self):
+        with pytest.raises(CoheriqDomainNotFoundError, match="defines no domain of that name"):
+            enable_engine(warnings, "fast")

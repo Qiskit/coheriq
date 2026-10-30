@@ -128,6 +128,16 @@ enable = [
 [tool.pytest.ini_options]
 testpaths = ["./src/", "./test/"]
 addopts = "--ignore=test/coverage_startup"
+filterwarnings = [
+    # Test domains are named for brevity rather than after an importable
+    # package, which is exactly what CoheriqDomainWarning reports.  The tests
+    # that check the warning itself use pytest.warns, which overrides this.
+    #
+    # Matched by message rather than by category: naming the category would make
+    # pytest import coheriq while parsing this file, which shadows the installed
+    # package under test with ./src and breaks doctest collection.
+    "ignore:Domain name .* does not name an importable module:UserWarning",
+]
 
 [tool.ruff]
 line-length = 100

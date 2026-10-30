@@ -8,7 +8,7 @@ version = "0.0.0"
 requires-python = ">=3.10"
 dependencies = ["coheriq", "coheriq_ragged_domain"]
 
-[project.entry-points.'coheriq.engines.ragged']
+[project.entry-points.'coheriq.engines.coheriq_ragged_domain']
 fused = 'coheriq_ragged_engine._overrides'
 
 [tool.scikit-build]

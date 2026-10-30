@@ -10,7 +10,7 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-"""Exceptions raised by Coheriq."""
+"""Exceptions and warnings issued by Coheriq."""
 
 
 class CoheriqError(RuntimeError):
@@ -43,3 +43,11 @@ class CoheriqDomainNotFoundError(CoheriqUserError):
 
 class CoheriqEngineNotFoundError(CoheriqUserError):
     """Error caused by referencing a non-existent engine by name."""
+
+
+class CoheriqWarning(UserWarning):
+    """Base class for all Coheriq warnings."""
+
+
+class CoheriqDomainWarning(CoheriqWarning):
+    """Warning about a questionable :class:`.AccelerationDomain` definition."""

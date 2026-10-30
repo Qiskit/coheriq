@@ -15,15 +15,19 @@
 from __future__ import annotations
 
 import functools
+import importlib.util
 import os
+import warnings
 from collections.abc import Callable
 from enum import Enum
 from inspect import isclass
 from threading import Lock
+from types import ModuleType
 from typing import TYPE_CHECKING
 
 from .exceptions import (
     CoheriqDomainError,
+    CoheriqDomainWarning,
 )
 
 if TYPE_CHECKING:
@@ -51,10 +55,71 @@ constructed with it.
 _RESERVED_ENGINE_NAMES = frozenset({REFERENCE})
 
 
+def _is_dotted_identifier(name: str) -> bool:
+    """Return whether ``name`` has the shape of a dotted module name."""
+    return bool(name) and all(segment.isidentifier() for segment in name.split("."))
+
+
+def _module_is_findable(name: str) -> bool:
+    """Return whether ``name`` names a module that can be found on the import path.
+
+    This never imports ``name``: an already-imported module is answered from
+    ``sys.modules``, and anything else is resolved by the finders alone.  The
+    broad ``except`` is deliberate — this only ever informs a warning, so a
+    finder that raises must not be allowed to break domain construction.
+    """
+    if not _is_dotted_identifier(name):
+        # find_spec raises, rather than returning None, for a dotted name whose
+        # parent package cannot be imported, so screen out anything that is not
+        # shaped like a module name before asking it.
+        return False
+    try:
+        return importlib.util.find_spec(name) is not None
+    except Exception:  # pylint: disable=broad-exception-caught
+        return False
+
+
+def _warn_if_name_is_not_a_module(name: str) -> None:
+    """Warn if ``name`` does not name an importable module.
+
+    A domain's name should be the ``__name__`` of the package it belongs to, so
+    that users can pass the module itself wherever a domain is expected.  This
+    is a convention rather than a requirement: it is only ever a warning, since
+    a domain defined in a script, a notebook, or a test has no package to name.
+    """
+    if _module_is_findable(name):
+        return
+    warnings.warn(
+        f"Domain name '{name}' does not name an importable module.  A domain's "
+        f"name should be the __name__ of the package it belongs to, which lets "
+        f"users pass that module to coheriq.enable_engine() instead of repeating "
+        f"its name as a string.",
+        CoheriqDomainWarning,
+        stacklevel=3,
+    )
+
+
+def _domain_name_from_module(module: ModuleType, /) -> str:
+    """Return the domain name a module stands in for.
+
+    Resolution is by name: the convention is that a domain is named after the
+    package it belongs to, so the module's ``__name__`` is the lookup key.  No
+    separate record of which module defined a domain is kept, which keeps the
+    convention the single source of truth.
+    """
+    return module.__name__
+
+
 def _get_domain_by_name(name: str) -> AccelerationDomain:
     """Return the domain with the given name; raises KeyError if not found."""
     with _domain_registry_lock:
         return _domain_registry[name]
+
+
+def _registered_domain_names() -> tuple[str, ...]:
+    """Return the names of all registered domains, sorted."""
+    with _domain_registry_lock:
+        return tuple(sorted(_domain_registry))
 
 
 class _DomainState(Enum):
@@ -78,6 +143,7 @@ class AccelerationDomain:
             raise CoheriqDomainError("domain name must be a string")
         if not name:
             raise CoheriqDomainError("domain name cannot be empty")
+        _warn_if_name_is_not_a_module(name)
         self._state = _DomainState.CONSTRUCTING
         self._name = name
         with _domain_registry_lock:

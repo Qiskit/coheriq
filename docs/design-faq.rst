@@ -338,12 +338,34 @@ the library — but three considerations outweighed it:
   Coheriq's own :doc:`user guide <guides/user-guide>`. There is no per-library
   activation surface to design, export, or document.
 
-The cost is that user code names the domain on each call
-(``coheriq.enable_engine("mylib", "fast")``) and imports ``coheriq``. The domain
-name is a short, stable identifier, and the import is a single line at startup,
-so the tradeoff favors the free function. A future refinement is expected to let
-a library *module* stand in for its domain name, removing even that small
-coupling; that is being designed separately.
+The cost is that user code identifies the domain on each call and imports
+``coheriq``, which is a single line at startup.
+
+The domain argument accepts the library's *module*
+(``coheriq.enable_engine(mylib, "fast")``), which is the recommended form, and
+this removes the one genuine hazard the free function introduced. A domain is
+registered as a side effect of importing the library that defines it, so the
+string form ``coheriq.enable_engine("mylib", "fast")`` requires that the import
+has already happened — a precondition invisible in the call itself, and one that
+produced a puzzling "no domain named 'mylib'" error when it was violated.
+Passing the module makes the precondition unstatable: the module cannot be
+named before it has been imported. Resolution is by name, which is why a
+domain's name should be the ``__name__`` of the package it belongs to.
+
+Why is the convention only a warning?
+--------------------------------------
+
+A domain whose name is not an importable module cannot be activated by passing
+that module, so Coheriq warns
+(:exc:`~coheriq.CoheriqDomainWarning`) when a domain is constructed with such a
+name. It is a warning rather than an error because a domain defined in a
+script, a notebook, or a test has no package to be named after, and those
+domains are legitimate — the demonstration notebooks in this repository define
+a domain and an engine in one file, which no package name could describe. Such
+a domain works normally; only the module form of the call is unavailable to it.
+
+The check runs at construction, where the name is passed, so the warning points
+at the line that needs changing. It never imports the name it is checking.
 
 
 Naming

@@ -17,8 +17,9 @@ It provides alternative implementations of the domain's candidates.
 
 The engine's overrides live in the :mod:`coheriq_ragged_engine._overrides`
 submodule, which is declared as an entry point under the
-``coheriq.engines.ragged`` group.  coheriq loads that submodule on demand when
-user code calls ``coheriq.enable_engine("ragged", "fused")``.
+``coheriq.engines.coheriq_ragged_domain`` group.  coheriq loads that submodule
+on demand when
+user code calls ``coheriq.enable_engine(coheriq_ragged_domain, "fused")``.
 
 Keeping the engine out of this ``__init__`` is deliberate: importing the package
 should not register the engine as a side effect.  A real package might ship
