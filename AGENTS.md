@@ -30,6 +30,11 @@ tox -e ragged-engine
 # Run coverage (includes doctests)
 tox -e coverage
 
+# Run the unit tests with spawn-based isolation instead of --forked.
+# This is how the suite runs on Windows, which has no os.fork().
+tox -e py-spawn
+tox -e coverage-spawn
+
 # Lint (ruff format check, ruff check, mypy, pylint, copyright check)
 tox -e lint
 
@@ -42,7 +47,11 @@ tox -e docs
 
 The `py`, `coverage`, and `doctest` tox environments run pytest with `--forked`, so each test runs in a subprocess. This is necessary because `AccelerationDomain` and `AccelerationEngine` use a global registry that cannot otherwise be reset between tests. `--forked` is set per-environment (in `tox.ini`), not in `pyproject.toml`, so if you invoke pytest directly on `test/` rather than through tox you must pass `--forked` yourself.
 
-`--forked` relies on `os.fork()` and so does not run on Windows. The envs that need it are therefore Linux/macOS only; the in-process suites below (`notebook`, `ragged`, `ragged-engine`) are what CI runs on Windows.
+`--forked` relies on `os.fork()` and so does not run on Windows. The `py-spawn` and `coverage-spawn` envs cover that gap by spawning a fresh interpreter per test instead of forking. The plugin behind them lives at `test/spawn_isolation/`, alongside the vendored `pytest-forked` in `test/coverage_startup/`. Both directories are named in `addopts` as `--ignore`, following the existing convention; neither holds a file matching `test_*.py`, so nothing in them is collected either way.
+
+Neither spawn env is in `envlist`, so a bare `tox` does not run them. `--forked` remains the default on POSIX because it is roughly an order of magnitude faster. The Windows CI job's `toxenv` lists which envs run there.
+
+`doctest` still needs `--forked` and so remains Linux/macOS only.
 
 ### The example engine (`example/engine`) is a compiled C++/nanobind package
 
@@ -62,11 +71,13 @@ Coheriq is a **dispatch decorator framework** that allows a library (the "domain
 
 ### Three-party model
 
-1. **Domain** (addon/library code) — Creates an `AccelerationDomain`, decorates functions with `@domain.acceleration_candidate`, then calls `domain.materialize()`. This locks in the default implementations and makes the wrapped callables available to users.
+1. **Domain** (addon/library code) — Creates an `AccelerationDomain`, decorates functions with `@domain.acceleration_candidate`, then calls `domain.materialize()`. This builds the class that is the domain's **reference implementation** and makes the wrapped callables available to users.
 
 2. **Engine** (accelerator code) — Creates an `AccelerationEngine(domain_name, engine_name)`, decorates override functions with `@engine.override`, then calls `engine.materialize()`. The engine uses Python class inheritance (`type(...)`) internally, so engines can inherit from other engines (including diamond inheritance, which is exercised in `docs/demos/diamond_inheritance.ipynb`).
 
 3. **User code** — Calls `coheriq.enable_engine(domain_name, engine_name)` once at startup to activate an engine. After that, all wrapped callables silently dispatch to the engine's overrides. Activation is a free function rather than a method on the domain; `docs/design-faq.rst` records why.
+
+The reference implementation is an engine, not a separate kind of thing: every engine's class inherits from the domain's, and dispatch does not branch on the two cases. It is named `coheriq.REFERENCE` (the string `"reference"`), a name `AccelerationEngine` refuses because the domain owns it. `enable_engine(domain, coheriq.REFERENCE)` pins it, which differs from simply not choosing, because an explicit call takes precedence over the domain's environment variable. `coheriq.available_engines(domain)` lists the enableable names, always leading with `"reference"`, so the result is never empty; `coheriq.active_engine(domain)` returns the active name, or `None` while nothing has been resolved yet.
 
 ### Module layout
 

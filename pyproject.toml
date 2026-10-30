@@ -22,6 +22,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Topic :: Scientific/Engineering :: Physics",
 ]
 
@@ -40,7 +41,11 @@ dev = [
     "tox>=4.22.0",
 ]
 basetest = [
-    "pytest>=8.0",
+    # pytest 9.2 moved report.nodeid behind a NodeId dataclass stored in the
+    # report's __dict__, which pytest-forked's marshal-based transport cannot
+    # serialize.  Every --forked test dies in the child.  Unpin once
+    # pytest-forked handles it.
+    "pytest>=8.0,<9.2",
     "pytest-cov>=5.0",
     "pytest-forked>=1.4.0",
 ]
@@ -127,7 +132,7 @@ enable = [
 
 [tool.pytest.ini_options]
 testpaths = ["./src/", "./test/"]
-addopts = "--ignore=test/coverage_startup"
+addopts = "--ignore=test/coverage_startup --ignore=test/spawn_isolation"
 
 [tool.ruff]
 line-length = 100

@@ -188,6 +188,8 @@ submodules to register their candidates should not, as a side effect, drag in a
 heavy dependency.
 
 
+.. _write-robust-tests:
+
 Write robust tests
 ==================
 

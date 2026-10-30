@@ -54,11 +54,7 @@ Engines are ordinary Python classes under the hood, so independently developed e
 
 ## Supported platforms
 
-Coheriq targets Linux, macOS, and Windows. Its full test suite runs on Linux
-and macOS, operating systems which support isolating each test in its own
-process with `pytest --forked` (this relies on `os.fork()`). Windows is tested
-in a more limited way, running the portions of the suite that do not require
-`--forked`, until a fork-free way to run the rest is worked out.
+Coheriq targets Linux, macOS, and Windows.
 
 ## Stability policy
 
