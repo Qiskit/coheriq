@@ -337,14 +337,15 @@ In practice:
   ``default_tolerance=dict(atol=0, rtol=0)``, and regenerates references with
   ``--force-regen`` — which rewrites the files but still fails the test, so a
   comparison cannot silently start accepting drift.
-- **Do not reach for** ``pytest-forked`` **in your own suite.** Coheriq's test
-  suite passes ``--forked`` because it exercises the activation machinery itself
-  and so needs a fresh registry for each of many tests. A domain's or engine's
-  suite exercises the library *under* one activation, which the whole suite can
-  share. Per-test forking buys nothing there, and because it relies on
-  :func:`os.fork`, a suite that depends on it does not run on Windows. Forking
-  is still supported in general — see :ref:`the question on threads and fork
-  <faq-threads-and-fork>` for the activate-then-fork worker pattern.
+- **Do not isolate per test in your own suite.** Coheriq's own tests run one
+  per process, because they exercise the activation machinery itself and so each
+  need a registry no domain has touched yet. A domain's or engine's suite
+  exercises the library *under* one activation, which the whole suite can share,
+  so per-test isolation buys it nothing but runtime. Reaching for
+  ``pytest-forked`` to get it also costs Windows support, since it relies on
+  :func:`os.fork`. Forking is still supported in general — see :ref:`the
+  question on threads and fork <faq-threads-and-fork>` for the
+  activate-then-fork worker pattern.
 
 Exact agreement is a stronger bar than a tolerance and makes any regression
 unmissable, but it can be fragile: achieving it means pinning the things that
