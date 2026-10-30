@@ -168,6 +168,34 @@ restriction removes a class of failure mode rather than limiting anything a
 user realistically needs to do. The guiding principle is *as simple as
 possible, but no simpler.*
 
+.. _faq-one-engine:
+
+Why can only one engine be active per domain?
+---------------------------------------------
+
+In Coheriq's model, a domain runs at most one engine at a time. If several could
+be active at once, somebody would have to decide which combinations work
+together. That question is genuinely hard — two engines may each replace an
+overlapping set of candidates, assume incompatible data representations, or
+expect exclusive use of a device. The user is the party least equipped to answer
+it, having typically written neither engine, and simultaneous activation would
+put the question to them every time they install a second engine.
+
+A user who wants implementations from two engines can build an engine that
+inherits from both, and the combination resolves through Python's ordinary
+method-resolution order:
+
+.. code-block:: python
+
+   combined = coheriq.AccelerationEngine("mylib", "combined", ["fast", "distributed"])
+   combined.materialize()
+   coheriq.enable_engine("mylib", "combined")
+
+The question is relocated to the author of a named engine, which the domain's
+test suite can exercise as a unit. Building one privately is easy enough to be
+worth doing, but it is also a hint that the combination deserves to be published
+as an engine of its own.
+
 Why must an engine be activated before first use?
 -------------------------------------------------
 
@@ -626,7 +654,9 @@ A domain runs at most one engine at a time. Coheriq does not support several
 engines being simultaneously active for the same domain. The supported way to
 get the benefit of multiple engines is to **compose them through inheritance**
 into a single hybrid engine, which resolves overrides via a single, well-defined
-MRO rather than an ambiguous runtime blend.
+MRO rather than an ambiguous runtime blend. See
+:ref:`why only one engine is active <faq-one-engine>` for why the rule is drawn
+this way.
 
 If the goal is to *compare* implementations rather than combine them, see
 :ref:`the question on comparing an engine against the reference
