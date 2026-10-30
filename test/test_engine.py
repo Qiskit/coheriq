@@ -105,6 +105,13 @@ class TestDomainConstruction:
         domain.materialize()
         assert wrapped_f() == f()
 
+    def test_known_domains(self):
+        # Construct out of alphabetical order to test sorting.
+        AccelerationDomain("foo")
+        AccelerationDomain("bar")
+
+        assert coheriq.known_domains() == ("bar", "foo")
+
 
 class TestEngineConstruction:
     def test_conflicting_names(self, domain_name):

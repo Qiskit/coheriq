@@ -25,7 +25,7 @@ from .domain import (
     _DomainState,
     _get_domain_by_name,
     _module_is_findable,
-    _registered_domain_names,
+    known_domains,
 )
 from .engine import AccelerationEngine, _EngineState
 from .exceptions import (
@@ -51,7 +51,7 @@ def _domain_not_found_message(name: str) -> str:
         # it is a submodule of the package that owns the domain, since a domain
         # is named after its top-level package.
         top_level = name.split(".")[0]
-        if top_level != name and top_level in _registered_domain_names():
+        if top_level != name and top_level in known_domains():
             return (
                 f"{message}.  A domain is named after its top-level package, so "
                 f"pass '{top_level}' rather than the submodule '{name}'."
@@ -64,7 +64,7 @@ def _domain_not_found_message(name: str) -> str:
             f"it first, and consider passing the module itself instead of its "
             f"name, which makes the ordering impossible to get wrong."
         )
-    registered = _registered_domain_names()
+    registered = known_domains()
     if registered:
         return f"{message}.  Registered domains: {', '.join(registered)}"
     return (

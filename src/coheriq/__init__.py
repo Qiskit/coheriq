@@ -15,7 +15,7 @@
 from __future__ import annotations
 
 from .activation import active_engine, available_engines, enable_engine
-from .domain import REFERENCE, AccelerationDomain
+from .domain import REFERENCE, AccelerationDomain, known_domains
 from .engine import AccelerationEngine
 from .exceptions import (
     CoheriqDomainError,
@@ -47,4 +47,5 @@ __all__ = [
     "active_engine",
     "available_engines",
     "enable_engine",
+    "known_domains",
 ]

@@ -116,10 +116,15 @@ def _get_domain_by_name(name: str) -> AccelerationDomain:
         return _domain_registry[name]
 
 
-def _registered_domain_names() -> tuple[str, ...]:
-    """Return the names of all registered domains, sorted."""
+def known_domains() -> tuple[str, ...]:
+    """Return domains known to the current process.
+
+    Only domains that have been constructed in the current process are
+    reported. This does not include installed domains from packages that
+    have not yet been imported.
+    """
     with _domain_registry_lock:
-        return tuple(sorted(_domain_registry))
+        return tuple(sorted(_domain_registry.keys()))
 
 
 class _DomainState(Enum):
