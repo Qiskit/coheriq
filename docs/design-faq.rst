@@ -18,7 +18,7 @@ Why substitute whole coherent units instead of overriding individual functions?
 --------------------------------------------------------------------------------
 
 A tempting alternative is to let an engine replace acceleration candidates one
-function at a time, mixing accelerated and default implementations freely. Coheriq
+function at a time, mixing accelerated and reference implementations freely. Coheriq
 deliberately does not work that way: an engine substitutes a **coherent unit** of
 behavior. What you are really selecting is a *policy* for how a body of work is
 carried out, not a patch to a single mechanism. Several things follow from that
@@ -30,7 +30,7 @@ distinction:
   assumptions around it stays implicit and unchanged. Substituting the whole unit
   replaces the *bundle of invariants*, not merely a line of code.
 - **Atomicity — no half-accelerated limbo.** If some calls dispatched to the
-  engine and others to the default, a program could end up in a
+  engine and others to the reference implementation, a program could end up in a
   *half-accelerated limbo state*: mixing representations, hopping needlessly
   between host and device, or producing subtly wrong results. Whole-unit
   substitution is consistent by construction — either the engine's world is in

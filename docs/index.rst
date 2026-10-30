@@ -21,7 +21,7 @@ The mental model: three parties
 ===============================
 
 **1. The library (the "domain")** marks what *could* be accelerated and
-provides the default implementation:
+provides the reference implementation:
 
 .. code-block:: python
 

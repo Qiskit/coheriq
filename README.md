@@ -8,7 +8,7 @@ This lets acceleration be **optional** (users who can't or don't want the fast p
 
 ## The mental model: three parties
 
-**1. The library (the "domain")** marks what *could* be accelerated and provides the default implementation:
+**1. The library (the "domain")** marks what *could* be accelerated and provides the reference implementation:
 
 ```python
 from coheriq import AccelerationDomain
