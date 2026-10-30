@@ -8,4 +8,6 @@ User functions
 
 .. autofunction:: coheriq.active_engine
 
+.. autofunction:: coheriq.known_domains
+
 .. autodata:: coheriq.REFERENCE
