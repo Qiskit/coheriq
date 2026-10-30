@@ -28,6 +28,8 @@ from coheriq import (
     CoheriqDomainWarning,
     CoheriqEngineError,
     CoheriqEngineNotFoundError,
+    CoheriqLibraryError,
+    CoheriqUserError,
     CoheriqWarning,
     activation,
     active_engine,
@@ -715,13 +717,18 @@ class TestDomainAsModule:
         assert engine._domain is coheriq_domain
 
     def test_module_and_name_resolve_to_the_same_domain(self, coheriq_domain):
-        assert activation._resolve_domain(coheriq) is coheriq_domain
-        assert activation._resolve_domain("coheriq") is coheriq_domain
+        assert domain_module._resolve_domain(coheriq, CoheriqDomainNotFoundError)[0] is (
+            coheriq_domain
+        )
+        assert domain_module._resolve_domain("coheriq", CoheriqDomainNotFoundError)[0] is (
+            coheriq_domain
+        )
 
     def test_a_submodule_does_not_resolve_to_its_parent(self, coheriq_domain):
         # Resolution is by name only.  A domain may be named for any importable
         # module, so a submodule standing in for its parent would be a guess.
-        assert coheriq_domain is activation._resolve_domain(coheriq)
+        resolved, _ = domain_module._resolve_domain(coheriq, CoheriqDomainNotFoundError)
+        assert resolved is coheriq_domain
         with pytest.raises(CoheriqDomainNotFoundError, match="defines no domain of that name"):
             enable_engine(activation, "fast")
 
@@ -730,11 +737,35 @@ class TestDomainAsModule:
         with pytest.raises(TypeError, match="must be an AccelerationDomain, a module"):
             enable_engine(bad, "fast")
 
+    def test_engine_construction_shares_the_lookup_diagnostics(self, coheriq_domain):
+        # Engine construction and enable_engine resolve the domain through the
+        # same helper, so an engine author gets the same explanation a user does.
+        name = "coheriq.activation"
+        assert name in sys.modules
+        del sys.modules[name]
+        try:
+            with pytest.raises(CoheriqEngineError, match="has not been imported"):
+                AccelerationEngine(name, "fast")
+        finally:
+            importlib.import_module(name)
+        with pytest.raises(CoheriqEngineError, match=f"Registered domains: {coheriq_domain._name}"):
+            AccelerationEngine("cohriq", "fast")
+
+    def test_engine_and_user_errors_stay_classified_differently(self, coheriq_domain):
+        # Shared resolution must not collapse the two branches of the hierarchy:
+        # an engine naming a missing domain is library misuse, a user doing so is
+        # a user error.
+        missing = coheriq_domain._name + "-nope"
+        with pytest.raises(CoheriqLibraryError):
+            AccelerationEngine(missing, "fast")
+        with pytest.raises(CoheriqUserError):
+            enable_engine(missing, "fast")
+
     def test_engine_construction_rejects_a_non_module_non_name(self, coheriq_domain):
         assert coheriq_domain._name == "coheriq"
-        with pytest.raises(
-            CoheriqEngineError, match="must be an AccelerationDomain, a module, or the name of"
-        ):
+        # Unlike a missing domain, an argument that cannot name one at all is a
+        # TypeError whichever call site reports it.
+        with pytest.raises(TypeError, match="must be an AccelerationDomain, a module"):
             AccelerationEngine(42, "fast")
 
 

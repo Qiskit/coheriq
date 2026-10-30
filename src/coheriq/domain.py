@@ -17,6 +17,7 @@ from __future__ import annotations
 import functools
 import importlib.util
 import os
+import sys
 import warnings
 from collections.abc import Callable
 from enum import Enum
@@ -28,6 +29,7 @@ from typing import TYPE_CHECKING, Final
 from .exceptions import (
     CoheriqDomainError,
     CoheriqDomainWarning,
+    CoheriqError,
 )
 
 if TYPE_CHECKING:
@@ -100,6 +102,79 @@ def _domain_name_from_module(module: ModuleType, /) -> str:
     convention the single source of truth.
     """
     return module.__name__
+
+
+def _domain_name_of(domain: str | ModuleType | AccelerationDomain, /) -> str | None:
+    """Return the name ``domain`` refers to, or ``None`` if it names nothing."""
+    if isinstance(domain, AccelerationDomain):
+        return domain._name
+    if isinstance(domain, ModuleType):
+        return _domain_name_from_module(domain)
+    if isinstance(domain, str):
+        return domain
+    return None
+
+
+def _domain_not_found_message(name: str) -> str:
+    """Explain that no domain named ``name`` is registered, and suggest why.
+
+    A domain is registered as a side effect of importing the library that
+    defines it, so the overwhelmingly likely cause is that the library has not
+    been imported yet.  Checking whether the name is importable distinguishes
+    that from a misspelling, which otherwise produce the same bare message.
+    """
+    message = f"No domain named '{name}' has been registered"
+    if name in sys.modules:
+        return f"{message}.  Module '{name}' is imported but defines no domain of that name."
+    if _module_is_findable(name):
+        return (
+            f"{message}.  A module named '{name}' is installed but has not been "
+            f"imported, and importing it is what registers the domain.  Import "
+            f"it first, and consider passing the module itself instead of its "
+            f"name, which makes the ordering impossible to get wrong."
+        )
+    registered = known_domains()
+    if registered:
+        return f"{message}.  Registered domains: {', '.join(registered)}"
+    return (
+        f"{message}, and no domains are registered at all.  A domain is "
+        f"registered by importing the library that defines it, so the library "
+        f"this name refers to has probably not been imported yet."
+    )
+
+
+def _resolve_domain(
+    domain: str | ModuleType | AccelerationDomain,
+    not_found: type[CoheriqError],
+    /,
+) -> tuple[AccelerationDomain, str]:
+    """Return the domain ``domain`` refers to, with the name it was found under.
+
+    ``domain`` may be an :class:`.AccelerationDomain`, the name of one, or the
+    module a domain is named after.  Accepting the module is what makes the
+    import-order requirement unstatable: a module cannot be passed without
+    having been imported, and importing it is what registers the domain.
+
+    ``not_found`` is the exception raised when nothing is registered under the
+    name.  Callers supply it because they classify the same mistake
+    differently: a user naming a missing domain has made a
+    :class:`~coheriq.CoheriqUserError`, while an engine doing so has made a
+    :class:`~coheriq.CoheriqLibraryError`.  An argument that cannot name a
+    domain at all is a :exc:`TypeError` regardless of caller.
+    """
+    name = _domain_name_of(domain)
+    if name is None:
+        raise TypeError(
+            f"domain must be an AccelerationDomain, a module, or the name of a "
+            f"domain, got {type(domain).__name__} instead"
+        )
+    if isinstance(domain, AccelerationDomain):
+        # Already the object, so no lookup and no way for it to be missing.
+        return domain, name
+    try:
+        return _get_domain_by_name(name), name
+    except KeyError:
+        raise not_found(_domain_not_found_message(name)) from None
 
 
 def _get_domain_by_name(name: str) -> AccelerationDomain:

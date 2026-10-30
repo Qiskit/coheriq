@@ -14,18 +14,14 @@
 
 from __future__ import annotations
 
-import sys
 from importlib.metadata import entry_points
 from types import ModuleType
 
 from .domain import (
     REFERENCE,
     AccelerationDomain,
-    _domain_name_from_module,
     _DomainState,
-    _get_domain_by_name,
-    _module_is_findable,
-    known_domains,
+    _resolve_domain,
 )
 from .engine import AccelerationEngine, _EngineState
 from .exceptions import (
@@ -34,59 +30,6 @@ from .exceptions import (
     CoheriqEngineError,
     CoheriqEngineNotFoundError,
 )
-
-
-def _domain_not_found_message(name: str) -> str:
-    """Explain that no domain named ``name`` is registered, and suggest why.
-
-    A domain is registered as a side effect of importing the library that
-    defines it, so the overwhelmingly likely cause is that the library has not
-    been imported yet.  Checking whether the name is importable distinguishes
-    that from a misspelling, which otherwise produce the same bare message.
-    """
-    message = f"No domain named '{name}' has been registered"
-    if name in sys.modules:
-        return f"{message}.  Module '{name}' is imported but defines no domain of that name."
-    if _module_is_findable(name):
-        return (
-            f"{message}.  A module named '{name}' is installed but has not been "
-            f"imported, and importing it is what registers the domain.  Import "
-            f"it first, and consider passing the module itself instead of its "
-            f"name, which makes the ordering impossible to get wrong."
-        )
-    registered = known_domains()
-    if registered:
-        return f"{message}.  Registered domains: {', '.join(registered)}"
-    return (
-        f"{message}, and no domains are registered at all.  A domain is "
-        f"registered by importing the library that defines it, so the library "
-        f"this name refers to has probably not been imported yet."
-    )
-
-
-def _resolve_domain(domain: str | AccelerationDomain | ModuleType, /) -> AccelerationDomain:
-    """Return ``domain`` itself, or the registered domain it names.
-
-    ``domain`` may be an :class:`.AccelerationDomain`, the name of one, or the
-    module a domain is named after.  Accepting the module is what makes the
-    import-order requirement unstatable: a module cannot be passed without
-    having been imported, and importing it is what registers the domain.
-    """
-    if isinstance(domain, AccelerationDomain):
-        return domain
-    if isinstance(domain, ModuleType):
-        name = _domain_name_from_module(domain)
-    elif isinstance(domain, str):
-        name = domain
-    else:
-        raise TypeError(
-            f"domain must be an AccelerationDomain, a module, or the name of a "
-            f"domain, got {type(domain).__name__} instead"
-        )
-    try:
-        return _get_domain_by_name(name)
-    except KeyError:
-        raise CoheriqDomainNotFoundError(_domain_not_found_message(name)) from None
 
 
 def enable_engine(
@@ -117,7 +60,7 @@ def enable_engine(
     environment variable: it pins the reference implementation regardless of the
     surrounding environment, which silence cannot do.
     """
-    domain_ = _resolve_domain(domain)
+    domain_, _ = _resolve_domain(domain, CoheriqDomainNotFoundError)
 
     if engine == REFERENCE:
         # The reference implementation is the one engine a domain always has, and
@@ -222,7 +165,7 @@ def available_engines(domain: str | AccelerationDomain | ModuleType, /) -> tuple
     does not resolve or freeze the implementation: an engine can still be
     enabled afterwards.
     """
-    domain_ = _resolve_domain(domain)
+    domain_, _ = _resolve_domain(domain, CoheriqDomainNotFoundError)
     with domain_._lock:
         names = set(domain_._engine_registry)
     # Engines advertised via entry points may not have been imported yet, in
@@ -258,7 +201,7 @@ def active_engine(domain: str | AccelerationDomain | ModuleType, /) -> str | Non
     Unlike calling an acceleration candidate, this does not resolve or freeze the
     implementation.
     """
-    domain_ = _resolve_domain(domain)
+    domain_, _ = _resolve_domain(domain, CoheriqDomainNotFoundError)
     with domain_._lock:
         if domain_._state in (_DomainState.CONSTRUCTING, _DomainState.MATERIALIZED):
             return None
