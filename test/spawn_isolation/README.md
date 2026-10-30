@@ -54,10 +54,10 @@ POSIX: it is roughly an order of magnitude faster and is what the
 | spawn, 8 concurrent | 0.79s     |
 | spawn, 16 concurrent| 0.53s     |
 
-About 0.17s per test, dominated by `import pytest` (0.114s). Embarrassingly
-parallel, so pairing this with `pytest-xdist` hides most of it. The constant
-scales with import cost, so a Qiskit-sized import was **not** measured and is
-the number to check before trusting this elsewhere.
+The per-test constant is a fraction of a second, most of it `import pytest`.
+Embarrassingly parallel, so pairing this with `pytest-xdist` hides most of it.
+The constant scales with import cost, so a Qiskit-sized import was **not**
+measured and is the thing to check before trusting this elsewhere.
 
 ## The trap worth remembering
 
