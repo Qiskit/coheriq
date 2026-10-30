@@ -42,17 +42,6 @@ POSIX: it is ~10x faster and is what the `py`/`doctest`/`coverage` envs use.
     tox -e py-spawn         # unit tests, one fresh interpreter per test
     tox -e coverage-spawn   # same, with coverage (81%, matches forked)
 
-Neither env is in `envlist`, so a bare `tox` does not run them.  They are the
-Windows path and a cross-check, not part of a default sweep; CI names them
-explicitly.
-
-Windows CI runs `py-spawn,coverage-spawn,notebook,ragged,ragged-engine`.
-Before this it ran only the in-process envs, so nothing requiring an empty
-registry was tested there at all.
-
-The trigger to make spawn the *default* would be the `pytest<9.2` pin, not
-Windows support.
-
 ## Measurements
 
 26 tests (measured before #32 added one), Linux, Python 3.14:
