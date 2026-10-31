@@ -104,9 +104,15 @@ A domain's name should be the `__name__` of the module it belongs to — the nam
 
 `AccelerationDomain` warns (`CoheriqDomainWarning`) when its name does not resolve to an importable module. The convention is advisory, because a domain defined in a script, a notebook, or a test has no module to be named after — `docs/demos/diamond_inheritance.ipynb` is a deliberate example, and the test suite filters the warning in `pyproject.toml`. The check runs at construction, so the warning points at the line that passes the name, and it never imports the name it checks.
 
+<<<<<<< HEAD
 Module resolution is by name only. No record is kept of which module defined a domain, which keeps the convention the single source of truth, and a submodule therefore does not resolve to its parent.
 
 `_resolve_domain` lives in `domain.py`, because `activation.py` and `engine.py` both need it and `engine.py` cannot import from `activation.py` without creating a cycle. It takes the exception to raise for an unregistered name, because the callers classify that mistake differently: it is a `CoheriqUserError` from `enable_engine` but a `CoheriqLibraryError` from `AccelerationEngine`. An argument that cannot name a domain at all is a `TypeError` either way, so the resolver raises that itself.
+=======
+Module resolution is by name only (`_domain_name_from_module` in `domain.py`, used by both `activation._resolve_domain` and `AccelerationEngine.__init__`). No record is kept of which module defined a domain, which keeps the convention the single source of truth. A submodule therefore does not resolve to its parent; the error message suggests the parent instead.
+
+`_resolve_domain` lives in `activation.py`, but `engine.py` cannot import it without creating a cycle, so the module-to-name step lives in `domain.py` — the one module both already import.
+>>>>>>> origin/main
 
 ### `name` parameter
 
