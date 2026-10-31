@@ -87,3 +87,4 @@ License
    Design FAQ <design-faq>
    Demonstrations <demos/index>
    API References <apidocs/index>
+   Release notes <release-notes>
