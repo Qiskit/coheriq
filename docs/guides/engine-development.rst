@@ -23,10 +23,12 @@ A typical engine package's ``myengine/_overrides.py``:
 
 .. code-block:: python
 
+   import mylib
    from coheriq import AccelerationEngine
 
-   # The first argument is the *domain* name the library registered.
-   _engine = AccelerationEngine("mylib", "fast-engine")
+   # The first argument identifies the *domain* being accelerated.  Pass the
+   # library itself; its domain name is also accepted.
+   _engine = AccelerationEngine(mylib, "fast-engine")
    _override = _engine.override
 
    # Import every module that has an `@_override` decorator.
@@ -69,11 +71,12 @@ delivers *both* accelerations, with almost no code of its own:
 
 .. code-block:: python
 
+   import mylib
    from coheriq import AccelerationEngine
 
    # Base engines are given in MRO order.  They may be passed as engine
    # instances or by name (if already registered in the domain).
-   _hybrid = AccelerationEngine("mylib", "hybrid", ["fast-solver", "fast-recover"])
+   _hybrid = AccelerationEngine(mylib, "hybrid", ["fast-solver", "fast-recover"])
    _hybrid.materialize()
 
 Each base engine must itself be materialized before the engine that inherits
@@ -145,10 +148,10 @@ floating-point contraction or vectorized reduction order can invalidate it.
 Make your engine discoverable with entry points
 ===============================================
 
-You want a user to be able to write ``coheriq.enable_engine("mylib", "fast-engine")``
-*without* first importing your package by name.  Requiring the import would
-couple their code to your engine's import path — exactly the coupling Coheriq
-exists to remove.
+You want a user to be able to write ``coheriq.enable_engine(mylib, "fast-engine")``
+*without* first importing your engine package.  They import the library they are
+using; requiring them to import your engine as well would couple their code to
+its import path — exactly the coupling Coheriq exists to remove.
 
 Python **entry points** solve this.  Declare your engine in your package's
 ``pyproject.toml`` under the group ``coheriq.engines.<domain_name>``:
@@ -160,7 +163,7 @@ Python **entry points** solve this.  Declare your engine in your package's
 
 The target is the **module** whose import constructs and materializes your
 engine (here, the ``myengine`` package's ``_overrides``).  When a user calls
-``coheriq.enable_engine("mylib", "fast-engine")``, Coheriq looks up this entry
+``coheriq.enable_engine(mylib, "fast-engine")``, Coheriq looks up this entry
 point, imports the module on demand — which registers your engine as a side
 effect — and enables it.
 

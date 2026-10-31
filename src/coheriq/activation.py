@@ -14,9 +14,19 @@
 
 from __future__ import annotations
 
+import sys
 from importlib.metadata import entry_points
+from types import ModuleType
 
-from .domain import REFERENCE, AccelerationDomain, _DomainState, _get_domain_by_name
+from .domain import (
+    REFERENCE,
+    AccelerationDomain,
+    _domain_name_from_module,
+    _DomainState,
+    _get_domain_by_name,
+    _module_is_findable,
+    known_domains,
+)
 from .engine import AccelerationEngine, _EngineState
 from .exceptions import (
     CoheriqDomainError,
@@ -26,24 +36,75 @@ from .exceptions import (
 )
 
 
-def _resolve_domain(domain: str | AccelerationDomain, /) -> AccelerationDomain:
-    """Return ``domain`` itself, or the registered domain with that name."""
-    if not isinstance(domain, str):
+def _domain_not_found_message(name: str) -> str:
+    """Report that no domain named ``name`` is registered, with what is known.
+
+    Strictly what has been observed: whether a module of that name is imported
+    or merely installed, and which domains are registered.  Finding a module
+    says nothing about whether it defines a domain, so nothing here tells the
+    caller what to do about it -- only how coheriq registers domains at all,
+    which is the fact they may be missing.
+    """
+    message = f"No domain named '{name}' has been registered"
+    if name in sys.modules:
+        return f"{message}.  Module '{name}' is imported but defines no domain of that name."
+    if _module_is_findable(name):
+        return (
+            f"{message}.  A module named '{name}' is installed but not imported. "
+            f"A domain is registered when the module defining it is imported."
+        )
+    registered = known_domains()
+    if registered:
+        return f"{message}.  Registered domains: {', '.join(registered)}"
+    return f"{message}; no domains are registered at all."
+
+
+def _resolve_domain(domain: str | AccelerationDomain | ModuleType, /) -> AccelerationDomain:
+    """Return ``domain`` itself, or the registered domain it names.
+
+    ``domain`` may be an :class:`.AccelerationDomain`, the name of one, or the
+    module a domain is named after.  Accepting the module is what makes the
+    import-order requirement unstatable: a module cannot be passed without
+    having been imported, and importing it is what registers the domain.
+    """
+    if isinstance(domain, AccelerationDomain):
         return domain
+    if isinstance(domain, ModuleType):
+        name = _domain_name_from_module(domain)
+    elif isinstance(domain, str):
+        name = domain
+    else:
+        raise TypeError(
+            f"domain must be an AccelerationDomain, a module, or the name of a "
+            f"domain, got {type(domain).__name__} instead"
+        )
     try:
-        return _get_domain_by_name(domain)
+        return _get_domain_by_name(name)
     except KeyError:
-        raise CoheriqDomainNotFoundError(
-            f"No domain named '{domain}' has been registered"
-        ) from None
+        raise CoheriqDomainNotFoundError(_domain_not_found_message(name)) from None
 
 
-def enable_engine(domain: str | AccelerationDomain, engine: str | AccelerationEngine, /) -> None:
+def enable_engine(
+    domain: str | AccelerationDomain | ModuleType, engine: str | AccelerationEngine, /
+) -> None:
     """Activate ``engine`` for ``domain`` so its overrides take priority over the defaults.
 
-    ``domain`` may be an :class:`.AccelerationDomain` or the name of one; ``engine``
-    may be an :class:`.AccelerationEngine` or the name of one.  Enabling an engine
-    that is already active is an idempotent no-op.
+    ``domain`` may be the module the domain is named after, an
+    :class:`.AccelerationDomain`, or the name of one; ``engine`` may be an
+    :class:`.AccelerationEngine` or the name of one.  Enabling an engine that is
+    already active is an idempotent no-op.
+
+    Passing the module is preferred::
+
+        import mylib
+        import coheriq
+
+        coheriq.enable_engine(mylib, "fast-engine")
+
+    A domain is registered as a side effect of importing the library that defines
+    it, so a name can only be looked up once that import has happened.  Passing
+    the module removes that ordering hazard, because the module cannot be named
+    before it has been imported.
 
     Passing :data:`~coheriq.REFERENCE` selects the domain's own reference
     implementation.  That is worth doing explicitly even though it is what happens
@@ -133,10 +194,11 @@ def _enable_reference_low_level(domain: AccelerationDomain) -> None:
     domain._impl = domain._base
 
 
-def available_engines(domain: str | AccelerationDomain, /) -> tuple[str, ...]:
+def available_engines(domain: str | AccelerationDomain | ModuleType, /) -> tuple[str, ...]:
     """Return the names of the engines that can be enabled for ``domain``, sorted.
 
-    ``domain`` may be an :class:`.AccelerationDomain` or the name of one.
+    ``domain`` may be the module the domain is named after, an
+    :class:`.AccelerationDomain`, or the name of one.
 
     Every name returned is a valid argument to :func:`enable_engine`.  The result
     always includes :data:`~coheriq.REFERENCE`, the domain's own reference
@@ -170,10 +232,11 @@ def available_engines(domain: str | AccelerationDomain, /) -> tuple[str, ...]:
     return (REFERENCE, *sorted(names))
 
 
-def active_engine(domain: str | AccelerationDomain, /) -> str | None:
+def active_engine(domain: str | AccelerationDomain | ModuleType, /) -> str | None:
     """Return the name of the engine ``domain`` has resolved to, or ``None``.
 
-    ``domain`` may be an :class:`.AccelerationDomain` or the name of one.
+    ``domain`` may be the module the domain is named after, an
+    :class:`.AccelerationDomain`, or the name of one.
 
     There are three possible results:
 
