@@ -17,12 +17,19 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from enum import Enum
 from threading import Lock
+from types import ModuleType
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing_extensions import Self
 
-from .domain import _DomainState, _get_domain_by_name
+from .domain import (
+    _RESERVED_ENGINE_NAME_PREFIX,
+    AccelerationDomain,
+    _domain_name_from_module,
+    _DomainState,
+    _get_domain_by_name,
+)
 from .exceptions import (
     CoheriqEngineError,
     CoheriqEngineInheritanceError,
@@ -41,18 +48,47 @@ class _EngineState(Enum):
 class AccelerationEngine:
     """An accelerated re-implementation of (a subset of) the functionality in a domain."""
 
-    def __init__(self, domain_name: str, engine_name: str, bases: Sequence[Self | str] = (), /):
-        """Create an engine named ``engine_name`` for the existing domain ``domain_name``."""
-        try:
-            domain = _get_domain_by_name(domain_name)
-        except KeyError:
+    def __init__(
+        self,
+        domain_name: str | ModuleType | AccelerationDomain,
+        engine_name: str,
+        bases: Sequence[Self | str] = (),
+        /,
+    ):
+        """Create an engine named ``engine_name`` for the existing domain ``domain_name``.
+
+        ``domain_name`` may be the module the domain is named after, an
+        :class:`~coheriq.AccelerationDomain`, or its name.  An engine already has
+        to import the domain it accelerates, so passing the module avoids
+        repeating that name as a string.
+        """
+        if isinstance(domain_name, ModuleType):
+            domain_name = _domain_name_from_module(domain_name)
+        if isinstance(domain_name, AccelerationDomain):
+            domain = domain_name
+            domain_name = domain._name
+        elif isinstance(domain_name, str):
+            try:
+                domain = _get_domain_by_name(domain_name)
+            except KeyError:
+                raise CoheriqEngineError(
+                    f"No domain named '{domain_name}' has been registered"
+                ) from None
+        else:
             raise CoheriqEngineError(
-                f"No domain named '{domain_name}' has been registered"
-            ) from None
+                f"domain must be an AccelerationDomain, a module, or the name of "
+                f"a domain, got {type(domain_name).__name__} instead"
+            )
         if not isinstance(engine_name, str):
             raise CoheriqEngineError("engine name must be a string")
         if not engine_name:
             raise CoheriqEngineError("engine name cannot be empty")
+        if engine_name.startswith(_RESERVED_ENGINE_NAME_PREFIX):
+            raise CoheriqEngineError(
+                f"engine name '{engine_name}' is reserved for the domain's own use: "
+                f"names beginning with '{_RESERVED_ENGINE_NAME_PREFIX}' cannot be "
+                f"claimed by an engine"
+            )
         self._state = _EngineState.CONSTRUCTING
         self._domain_name = domain_name
         self._domain = domain

@@ -99,18 +99,63 @@ Activation needs nothing from you
 
 You do **not** need to expose an activation function of your own.  Users
 activate an engine with Coheriq's :func:`~coheriq.enable_engine`, passing your
-domain name:
+library itself:
 
 .. code-block:: python
 
    import coheriq
+   import mylib
 
-   coheriq.enable_engine("mylib", "fast-engine")
+   coheriq.enable_engine(mylib, "fast-engine")
 
-The domain name is the only identifier a user needs, and the call is the same
-for every Coheriq library — so you have nothing to re-export and nothing extra
-to document.  You can simply point your users at Coheriq's own
+Your package is the only identifier a user needs, and the call is the same for
+every Coheriq library — so you have nothing to re-export and nothing extra to
+document.  You can simply point your users at Coheriq's own
 :doc:`user guide <user-guide>`.
+
+.. _name-the-domain-after-the-module:
+
+Name the domain after your module
+---------------------------------
+
+For the call above to work, the domain's name must be the ``__name__`` of the
+module it belongs to:
+
+.. code-block:: python
+
+   # In mylib/_acceleration.py
+   _domain = AccelerationDomain("mylib")
+
+This is the name your library is **imported** under, which is not always the
+name it is distributed under.  A project that is published as ``my-lib`` and imported as
+``my_lib`` should have a domain name of ``my_lib``:
+
+.. code-block:: python
+
+   # Distribution "my-lib", imported as my_lib
+   _domain = AccelerationDomain("my_lib")   # not "my-lib"
+
+Constructing the domain in a submodule is fine, and is the usual arrangement:
+the name need only be *an importable module*.  Coheriq issues a
+:exc:`~coheriq.CoheriqDomainWarning` if the name does not resolve to an
+importable module, since a user who passes the module would then get a
+confusing lookup failure.
+
+A library with two genuinely separate bodies of functionality may give each its
+own domain, named for the subpackage it belongs to:
+
+.. code-block:: python
+
+   # In mylib/solver/_acceleration.py
+   _domain = AccelerationDomain("mylib.solver")
+
+Users then pass that module: ``coheriq.enable_engine(mylib.solver, ...)``.
+
+Naming a domain after a module is a convention rather than a requirement,
+because a domain defined in a script, a notebook, or a test has no module to
+be named after.  Such a domain works normally.  The only thing it gives up is
+being named by module: its users must pass its name as a string to
+:func:`~coheriq.enable_engine`.
 
 Opting into environment-variable activation
 -------------------------------------------
@@ -187,6 +232,8 @@ This applies to the import-before-``materialize()`` step above: importing your
 submodules to register their candidates should not, as a side effect, drag in a
 heavy dependency.
 
+
+.. _write-robust-tests:
 
 Write robust tests
 ==================

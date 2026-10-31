@@ -1,3 +1,13 @@
+[![PyPI](https://img.shields.io/pypi/v/coheriq?label=PyPI)](https://pypi.org/project/coheriq/)
+[![Python](https://img.shields.io/pypi/pyversions/coheriq?label=Python)](https://pypi.org/project/coheriq/)
+![Operating systems](https://img.shields.io/badge/%F0%9F%92%BB%20Operating_systems-Linux%20%7C%20macOS%20%7C%20Windows-informational)
+[![License](https://img.shields.io/github/license/Qiskit/coheriq?label=License)](LICENSE.txt)
+<br/>
+[![Docs](https://img.shields.io/badge/%F0%9F%93%84%20Docs-stable-blue.svg)](https://qiskit.github.io/coheriq/)
+[![Tests](https://github.com/Qiskit/coheriq/actions/workflows/test_latest_versions.yml/badge.svg?branch=main)](https://github.com/Qiskit/coheriq/actions/workflows/test_latest_versions.yml)
+[![Lint](https://github.com/Qiskit/coheriq/actions/workflows/lint.yml/badge.svg?branch=main)](https://github.com/Qiskit/coheriq/actions/workflows/lint.yml)
+[![Coverage](https://coveralls.io/repos/github/Qiskit/coheriq/badge.svg?branch=main)](https://coveralls.io/github/Qiskit/coheriq?branch=main)
+
 # coheriq
 
 **Swap in an accelerated implementation of a library — without changing the code that calls it.**
@@ -52,13 +62,17 @@ mylib.normalize([1.0, 2.0, 3.0])   # now runs on JAX, via the engine
 
 Engines are ordinary Python classes under the hood, so independently developed engines can be combined through diamond inheritance into a hybrid that delivers all of their accelerations at once.
 
+## Installation
+
+```bash
+pip install coheriq
+```
+
+Coheriq itself has no required dependencies beyond the standard library, and ships as a lightweight universal wheel. An acceleration engine is a separate package, installed only if you want one.
+
 ## Supported platforms
 
-Coheriq targets Linux, macOS, and Windows. Its full test suite runs on Linux
-and macOS, operating systems which support isolating each test in its own
-process with `pytest --forked` (this relies on `os.fork()`). Windows is tested
-in a more limited way, running the portions of the suite that do not require
-`--forked`, until a fork-free way to run the rest is worked out.
+Coheriq targets Linux, macOS, and Windows.
 
 ## Stability policy
 

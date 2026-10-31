@@ -10,7 +10,7 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-"""Exceptions raised by Coheriq."""
+"""Exceptions and warnings issued by Coheriq."""
 
 
 class CoheriqError(RuntimeError):
@@ -52,3 +52,11 @@ class CoheriqTypeError(CoheriqUserError, TypeError):
     :class:`TypeError`, so it is caught by ``except CoheriqError`` (or
     ``except CoheriqUserError``) as well as ``except TypeError``.
     """
+
+
+class CoheriqWarning(UserWarning):
+    """Base class for all Coheriq warnings."""
+
+
+class CoheriqDomainWarning(CoheriqWarning):
+    """Warning about a questionable :class:`.AccelerationDomain` definition."""

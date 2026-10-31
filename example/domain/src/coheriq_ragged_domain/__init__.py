@@ -31,11 +31,13 @@ from collections.abc import Iterable, Sequence
 
 from coheriq import AccelerationDomain
 
-_domain = AccelerationDomain("ragged", env_prefix="RAGGED")
+# The domain is named after this package, which lets user code activate an
+# engine by passing the module itself rather than repeating the name.
+_domain = AccelerationDomain("coheriq_ragged_domain", env_prefix="RAGGED")
 
 # The library marks its candidates below; user code activates an engine with
 # coheriq's own function -- there is nothing for this package to re-export:
-#   coheriq.enable_engine("ragged", "fused")
+#   coheriq.enable_engine(coheriq_ragged_domain, "fused")
 
 
 @_domain.acceleration_candidate

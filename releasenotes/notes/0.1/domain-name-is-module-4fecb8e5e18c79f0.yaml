@@ -1,0 +1,66 @@
+---
+features:
+  - |
+    :func:`~coheriq.enable_engine`, :func:`~coheriq.available_engines`,
+    :func:`~coheriq.active_engine`, and :class:`~coheriq.AccelerationEngine` now
+    accept the *module* a domain is named after, wherever they accepted a domain
+    name.  This is the recommended way to identify a domain.
+
+    .. code-block:: python
+
+       import coheriq
+       import mylib
+
+       coheriq.enable_engine(mylib, "fast-engine")
+
+    A domain is registered as a side effect of importing the library that
+    defines it, so the string form requires that the import has already
+    happened.  That precondition is invisible in the call itself, and violating
+    it produced a puzzling report that no such domain was registered.  Passing
+    the module makes the precondition unstatable, since a module cannot be named
+    before it has been imported.
+
+    The string form continues to work and is equivalent once the library has
+    been imported.  It remains the only option where the module form is
+    unavailable, such as in a single file that defines a domain and enables an
+    engine for it.
+upgrade:
+  - |
+    A domain's name should now be the ``__name__`` of the module it belongs to,
+    so that users can pass that module in place of the name.  This is the name
+    the library is imported under, which is not always the name it is
+    distributed under: a project published as ``my-lib`` and imported as
+    ``my_lib`` should have a domain name of ``my_lib``.  Constructing the domain
+    in a submodule is still fine: the name need only be an importable module.
+
+    Earlier guidance described the name loosely as the name of the library,
+    without tying it to an importable module.  For most domains the two already
+    coincide and nothing needs to change.
+
+    :class:`~coheriq.AccelerationDomain` now issues a
+    :exc:`~coheriq.CoheriqDomainWarning` when constructed with a name that does
+    not resolve to an importable module, because users of such a domain cannot
+    activate an engine by passing its module.  The convention is advisory: a
+    domain whose name violates it works exactly as before, and a domain defined
+    in a script, a notebook, or a test has no package to be named after.  The
+    check runs at construction, where the name is passed, and never imports the
+    name it checks.
+  - |
+    The example domain in ``example/`` is now named ``coheriq_ragged_domain``
+    rather than ``ragged``, to follow the convention above.  Its engine entry
+    point group is correspondingly ``coheriq.engines.coheriq_ragged_domain``.
+    The ``RAGGED_ENGINE`` environment variable is unchanged, since the
+    environment prefix is independent of the domain name.
+other:
+  - |
+    Coheriq warnings now have their own hierarchy, so they can be filtered as a
+    group: :exc:`~coheriq.CoheriqWarning` derives from :exc:`UserWarning`, and
+    :exc:`~coheriq.CoheriqDomainWarning` derives from it.
+
+    .. code-block:: python
+
+       import warnings
+
+       import coheriq
+
+       warnings.filterwarnings("ignore", category=coheriq.CoheriqWarning)

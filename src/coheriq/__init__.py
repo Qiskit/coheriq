@@ -14,12 +14,13 @@
 
 from __future__ import annotations
 
-from .activation import enable_engine
-from .domain import AccelerationDomain, resolve_impl
+from .activation import active_engine, available_engines, enable_engine
+from .domain import REFERENCE, AccelerationDomain, known_domains, resolve_impl
 from .engine import AccelerationEngine
 from .exceptions import (
     CoheriqDomainError,
     CoheriqDomainNotFoundError,
+    CoheriqDomainWarning,
     CoheriqEngineError,
     CoheriqEngineInheritanceError,
     CoheriqEngineNotFoundError,
@@ -27,13 +28,16 @@ from .exceptions import (
     CoheriqLibraryError,
     CoheriqTypeError,
     CoheriqUserError,
+    CoheriqWarning,
 )
 
 __all__ = [
+    "REFERENCE",
     "AccelerationDomain",
     "AccelerationEngine",
     "CoheriqDomainError",
     "CoheriqDomainNotFoundError",
+    "CoheriqDomainWarning",
     "CoheriqEngineError",
     "CoheriqEngineInheritanceError",
     "CoheriqEngineNotFoundError",
@@ -41,6 +45,10 @@ __all__ = [
     "CoheriqLibraryError",
     "CoheriqTypeError",
     "CoheriqUserError",
+    "CoheriqWarning",
+    "active_engine",
+    "available_engines",
     "enable_engine",
+    "known_domains",
     "resolve_impl",
 ]

@@ -9,11 +9,10 @@ understand how the framework works internally to follow it.
 .. note::
 
    Activating an engine is done through Coheriq's own
-   :func:`~coheriq.enable_engine` function, passing the *name of the library*
-   (its domain name) and the engine you want.  You do not need the library to
-   expose anything special for this — the same call works for every Coheriq
-   library.  Consult your library's documentation for its domain name and the
-   engine names available to it.
+   :func:`~coheriq.enable_engine` function, passing *the library itself* and the
+   engine you want.  You do not need the library to expose anything special for
+   this — the same call works for every Coheriq library.  Consult your library's
+   documentation for the engine names available to it.
 
 
 Install an engine
@@ -35,33 +34,71 @@ environment variable described below).
 Query the available engines
 ===========================
 
-Which engine names are available depends on what you have installed.  In the future, Coheriq is expected to provide a mechanism for querying them.  The name
-you pass to :func:`~coheriq.enable_engine` is the engine
-name that the engine package advertises.
+Which engine names are available depends on what you have installed.
+:func:`~coheriq.available_engines` lists the ones you can pass to
+:func:`~coheriq.enable_engine`:
+
+.. code-block:: python
+
+   >>> import coheriq
+   >>> import mylib
+   >>> coheriq.available_engines(mylib)
+   ('reference', 'mylib-fast')
+
+Every library has at least one entry: ``'reference'``, its own implementation.
+In the current version of Coheriq it comes first and is the one you get if you
+enable nothing.  Any other names are acceleration engines you have installed.
+
+Asking this question does not activate anything, and it does not import the
+engine packages it names.  An engine can advertise itself without having been
+imported yet, so a listed name means :func:`~coheriq.enable_engine` will try it,
+not that it is guaranteed to load.
 
 
 Activate an engine
 ==================
 
 There are two ways to activate an engine.  You must do so **before the first
-use** of any accelerated functionality; otherwise, the default implementation is used.
+use** of any accelerated functionality; otherwise, the library's reference
+implementation is used.
 
 In Python code
 --------------
 
 Call :func:`~coheriq.enable_engine` once, at program startup, before calling
-anything else in the library.  Pass the library's domain name and the engine
-name:
+anything else in the library.  Pass the library itself and the engine name:
 
 .. code-block:: python
 
    import coheriq
    import mylib
 
-   coheriq.enable_engine("mylib", "fast-engine")
+   coheriq.enable_engine(mylib, "fast-engine")
 
    # From here on, all accelerated functions dispatch to the engine.
    result = mylib.some_function(...)
+
+.. _passing-the-module:
+
+Why pass the module?
+~~~~~~~~~~~~~~~~~~~~
+
+A library's domain is registered as a side effect of importing it, so Coheriq
+can only look up a library it has already seen.  Passing the module makes that
+ordering impossible to get wrong: you cannot name ``mylib`` before importing it.
+
+The library's domain name is also accepted, and is equivalent as long as the
+import has already happened:
+
+.. code-block:: python
+
+   import mylib   # required first: this is what registers the domain
+
+   coheriq.enable_engine("mylib", "fast-engine")
+
+Reach for the string form only where the module form is unavailable — for
+instance in a single file that defines a domain and enables an engine for it,
+since such a file cannot import itself.
 
 Via an environment variable
 ---------------------------

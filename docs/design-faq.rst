@@ -14,11 +14,13 @@ The :doc:`conceptual overview <overview>` introduces the vocabulary
 The dispatch mechanism
 ======================
 
+.. _faq-coherent-units:
+
 Why substitute whole coherent units instead of overriding individual functions?
 --------------------------------------------------------------------------------
 
 A tempting alternative is to let an engine replace acceleration candidates one
-function at a time, mixing accelerated and default implementations freely. Coheriq
+function at a time, mixing accelerated and reference implementations freely. Coheriq
 deliberately does not work that way: an engine substitutes a **coherent unit** of
 behavior. What you are really selecting is a *policy* for how a body of work is
 carried out, not a patch to a single mechanism. Several things follow from that
@@ -29,8 +31,8 @@ distinction:
   hidden state. Overriding just the function replaces one leaf while the tree of
   assumptions around it stays implicit and unchanged. Substituting the whole unit
   replaces the *bundle of invariants*, not merely a line of code.
-- **Atomicity — no half-accelerated limbo.** If some calls dispatched to the
-  engine and others to the default, a program could end up in a
+- **Atomicity — no half-accelerated limbo.** If some calls dispatched to an
+  engine and others to the reference implementation, a program could end up in a
   *half-accelerated limbo state*: mixing representations, hopping needlessly
   between host and device, or producing subtly wrong results. Whole-unit
   substitution is consistent by construction — either the engine's world is in
@@ -94,7 +96,7 @@ implementation is simpler and keeps the real callable intact.
 Why use ``type()`` and real inheritance under the hood?
 -------------------------------------------------------
 
-When a domain materializes, Coheriq builds a class from its default
+When a domain materializes, Coheriq builds a class from its reference
 implementations using :func:`type`. Each engine builds its own class that
 inherits from that domain class. This is a deliberate choice: because engines
 are ordinary Python classes, **composing engines is just Python multiple
@@ -163,10 +165,38 @@ large and coherent enough that a single, one-time choice is what you want.
 The activation contract
 ========================
 
-Coheriq's rules for activating an engine are deliberately restrictive. Each
-restriction removes a class of failure mode rather than limiting anything a
-user realistically needs to do. The guiding principle is *as simple as
-possible, but no simpler.*
+Coheriq's rules for activating an engine mirror the way the environments it
+targets provision work: a configuration is settled before a job starts and holds
+for that job's lifetime. Each rule below also removes a class of failure mode.
+The guiding principle is *as simple as possible, but no simpler.*
+
+.. _faq-one-engine:
+
+Why can only one engine be active per domain?
+---------------------------------------------
+
+In Coheriq's model, a domain runs at most one engine at a time. If several could
+be active at once, somebody would have to decide which combinations work
+together. That question is genuinely hard — two engines may each replace an
+overlapping set of candidates, assume incompatible data representations, or
+expect exclusive use of a device. The user is the party least equipped to answer
+it, having typically written neither engine, and simultaneous activation would
+put the question to them every time they install a second engine.
+
+A user who wants implementations from two engines can build an engine that
+inherits from both, and the combination resolves through Python's ordinary
+method-resolution order:
+
+.. code-block:: python
+
+   combined = coheriq.AccelerationEngine("mylib", "combined", ["fast", "distributed"])
+   combined.materialize()
+   coheriq.enable_engine("mylib", "combined")
+
+The question is relocated to the author of a named engine, which the domain's
+test suite can exercise as a unit. Building one privately is easy enough to be
+worth doing, but it is also a hint that the combination deserves to be published
+as an engine of its own.
 
 Why must an engine be activated before first use?
 -------------------------------------------------
@@ -177,22 +207,37 @@ use, the choice of implementation is locked in.
 The reason is data consistency. An engine may replace not only functions but
 also the *data structures* a library produces and consumes, choosing a
 representation better suited to acceleration. If a program built some objects
-with the default representation and then switched engines, later code could
-receive a mix of default-native and accelerated representations — an
+with the reference representation and then switched engines, later code could
+receive a mix of reference and accelerated representations — an
 inconsistent state that is difficult to reason about and easy to get wrong.
 Requiring activation up front makes the data layout coherent for the entire
 lifetime of the process.
 
+.. _faq-one-way:
+
 Why is activation one-way, with no disable and no reset?
 --------------------------------------------------------
 
-Once an engine is enabled, it cannot be swapped for a different one or turned
-off, and there is no reset in the public API. This follows from the
+Once an implementation is active, it cannot be swapped for a different one or
+turned off, and there is no reset in the public API. This follows from the
 before-first-use rule: allowing a later switch would reintroduce exactly the
 inconsistent-state failure mode that rule exists to prevent. One-way activation
-eliminates a whole category of "how did I get into this state?" bugs and does
-not meaningfully restrict what a user can accomplish — to use a different
-engine, start a new process.
+eliminates a whole category of "how did I get into this state?" bugs.
+
+The cost of this is lower than it first appears, because **the process is
+already the unit of work** in the settings Coheriq targets. A batch job is
+submitted with its resources fixed; running a second configuration means
+submitting a second job, not reconfiguring the first one mid-flight. "Start a
+new process to use a different engine" asks for nothing a user of such a system
+was not doing anyway. On a workstation it costs an interpreter restart, which is
+the same thing a user does to change their BLAS thread count.
+
+"One-way" governs transitions, not which engine is chosen.  Selecting the
+reference implementation explicitly (see :ref:`faq-enable-reference`) is a
+transition *forward* into a settled state, ruling out the other engines exactly
+as enabling any engine does.  What the contract forbids is leaving a settled
+state once reached: pinning the reference implementation cannot undo an engine
+that is already active.
 
 .. _faq-process-global:
 
@@ -200,12 +245,16 @@ Why is activation process-global rather than per-call or scoped?
 ----------------------------------------------------------------
 
 Activation applies to the entire process, not to a call, a thread, or a
-``with`` block. It is unlikely that different parts of the same program
-genuinely need different implementations of the same library, and a single
-global choice keeps the model simple and predictable. This also mirrors how
-related execution configuration is conventionally handled (for example, the
-number of BLAS or OpenMP threads is typically set once per process, before
-work begins).
+``with`` block. The process is the unit the surrounding system already works in:
+a batch scheduler allocates resources to it, ``srun`` and ``mpirun`` fix the
+world size before it starts, and the device contexts, communicators, and memory
+pools an engine owns live and die with it. Selecting an implementation per
+process matches the granularity at which the resources to run that
+implementation were granted.
+
+This also mirrors how related execution configuration is conventionally handled
+(for example, the number of BLAS or OpenMP threads is typically set once per
+process, before work begins).
 
 There is a designed escape hatch for the rare case where global configuration
 is genuinely too coarse: an API may accept an opaque ``execution_context``
@@ -285,6 +334,81 @@ mutually excluded. If a concrete need arises, ``register_at_fork`` is the more
 promising of the two, since the child runs it while still single-threaded.
 
 
+.. _faq-comparing-implementations:
+
+How do I compare an engine against the reference implementation?
+----------------------------------------------------------------
+
+Checking that an engine agrees with the implementation it replaces — within a
+tolerance, or exactly — is a reasonable and common practice. With Coheriq, it
+requires **one process per implementation**: activation is one-way and
+process-global, so a single process can only ever observe one of them.
+
+Separate processes are the right tool here rather than a consolation prize:
+
+- **A same-process comparison would be a confounded experiment.** Enabling an
+  engine can change how *any* subsequent code in the process computes — an
+  engine can initialize MKL with different denormal or flush-to-zero flags,
+  change the FPU control word, raise or lower OpenMP thread counts, or install a
+  different BLAS at first touch. Code running after activation is the reference
+  implementation as observed in a process an engine has already altered. The
+  tighter the bar, the more this matters, so the rule protects the comparison.
+- **Benchmarking requires it regardless.** Timings taken after an engine has
+  warmed caches, spun up a thread pool, or claimed memory on a device measure
+  the state of the process. Separate processes are the only way to time two
+  implementations fairly, so a comparison harness needs this shape whether or
+  not it also checks numerical agreement.
+- **Recorded output outlives the build.** An in-process comparison can only
+  compare two implementations present at one moment. Save each run's output as
+  an artifact and you can also compare against a previous release, another
+  machine, a colleague's GPU run, or a build you cannot install locally — and
+  attach it to a bug report or bisect against it.
+
+Coheriq is deliberately restrictive here, because it is built for the setting
+where non-Python code enters the picture: an engine backed by a compiled
+extension, a foreign runtime, and a device it does not fully control. That is
+where the first point above bites hardest, and a contract that held only for
+engines written in pure Python would not be worth much in the HPC settings
+Coheriq targets. A pure-Python engine touches no global numerical state and so
+has less to fear from it, but it is held to the same rule.
+
+In practice:
+
+- **Run the whole suite once per implementation**, each in its own process,
+  selected by an environment variable or an equivalent switch. Coheriq's own
+  repository works this way — the example domain's suite runs twice, once
+  against the pure-Python reference implementation and once against the
+  compiled engine, with the engine chosen from the environment.
+- **Store results as artifacts and compare them with a tool built for it.**
+  `pytest-regressions <https://pypi.org/project/pytest-regressions/>`__ is one
+  worked example: its ``ndarrays_regression`` fixture compares against committed
+  reference data with per-array tolerances, supports exact comparison with
+  ``default_tolerance=dict(atol=0, rtol=0)``, and regenerates references with
+  ``--force-regen`` — which rewrites the files but still fails the test, so a
+  comparison cannot silently start accepting drift.
+- **Do not isolate per test in your own suite.** Coheriq's own tests run one
+  per process, because they exercise the activation machinery itself and so each
+  need a registry no domain has touched yet. A domain's or engine's suite
+  exercises the library *under* one activation, which the whole suite can share,
+  so per-test isolation buys it nothing but runtime. Reaching for
+  ``pytest-forked`` to get it also costs Windows support, since it relies on
+  :func:`os.fork`. Forking is still supported in general — see :ref:`the
+  question on threads and fork <faq-threads-and-fork>` for the
+  activate-then-fork worker pattern.
+
+**How close an agreement to aim for is the engine author's call.** A drop-in
+replacement meant to be bit-compatible is one target, and exact agreement makes
+any regression unmissable. The other is to take whatever speed is available and
+accept that it moves the last bits: vectorizing a reduction, blocking a loop, or
+calling a different BLAS all reorder the arithmetic as a side effect. Aiming for
+bit-identity means controlling what reaches those bits, FMA contraction and
+reduction order among them.
+
+Either way, the domain's test suite should pass. A domain suite is meant to
+assert invariants and tolerances so that it can run against any correct engine;
+see :ref:`write-robust-tests`, which covers this from the domain side.
+
+
 API shape
 =========
 
@@ -338,12 +462,36 @@ the library — but three considerations outweighed it:
   Coheriq's own :doc:`user guide <guides/user-guide>`. There is no per-library
   activation surface to design, export, or document.
 
-The cost is that user code names the domain on each call
-(``coheriq.enable_engine("mylib", "fast")``) and imports ``coheriq``. The domain
-name is a short, stable identifier, and the import is a single line at startup,
-so the tradeoff favors the free function. A future refinement is expected to let
-a library *module* stand in for its domain name, removing even that small
-coupling; that is being designed separately.
+The cost is that user code identifies the domain on each call and imports
+``coheriq``, which is a single line at startup.
+
+The domain argument accepts the library's *module*
+(``coheriq.enable_engine(mylib, "fast")``), which is the recommended form, and
+this removes the one genuine hazard the free function introduced. A domain is
+registered as a side effect of importing the library that defines it, so the
+string form ``coheriq.enable_engine("mylib", "fast")`` requires that the import
+has already happened — a precondition invisible in the call itself, and one that
+produced a puzzling "no domain named 'mylib'" error when it was violated.
+Passing the module makes the precondition unstatable: the module cannot be
+named before it has been imported. Resolution is by name, which is why a
+domain's name should be the ``__name__`` of the module it belongs to —
+which may differ from the name of the package it is distributed under.
+
+Why is the ``__name__`` convention only a warning?
+---------------------------------------------------
+
+A domain whose name is not an importable module cannot be activated by passing
+that module, so Coheriq warns
+(:exc:`~coheriq.CoheriqDomainWarning`) when a domain is constructed with such a
+name. It is a warning rather than an error because a domain defined in a
+script, a notebook, or a test has no package to be named after, and those
+domains are legitimate — the demonstration notebooks in this repository define
+a domain and an engine in one file, which no module name could describe. Such
+a domain works normally; its users just pass its name as a string to
+:func:`~coheriq.enable_engine`.
+
+The check runs at construction, where the name is passed, so the warning points
+at the line that needs changing. It never imports the name it is checking.
 
 
 Naming
@@ -382,6 +530,46 @@ implementation — does not warrant.
 open ecosystem: an author naturally says "I wrote an engine for CUDA," and the
 sentence needs no explanation. ``AccelerationEngine`` is the explicit form, and
 it pairs symmetrically with ``AccelerationDomain``.
+
+Is the reference implementation an engine?
+------------------------------------------
+
+Yes. When a domain materializes, Coheriq builds a class from its candidates;
+when an engine materializes, it builds a class that *inherits from that one*.
+The reference implementation is therefore the root of the engine inheritance
+graph. Dispatch does not branch on which case applies: resolving a call reads an
+attribute off whichever class is active.
+
+The word "engine" in this documentation describes **what is substituted** -- a
+coherent unit of behavior, state, and invariants, chosen as a whole -- and not
+who wrote it or how fast it is. The reference implementation satisfies that
+description. It is the unit the domain itself supplies.
+
+It is called the *reference* implementation rather than the *default* one
+because "default" is a status, and statuses change. If a domain ever ships another
+engine that is used by default, the reference implementation is still the reference
+implementation.
+
+Two consequences:
+
+- The reference implementation has a name, :data:`~coheriq.REFERENCE` (the
+  string ``"reference"``).  :func:`~coheriq.available_engines` lists it and
+  :func:`~coheriq.active_engine` reports it, like any other engine.
+- Selecting it can be an explicit act rather than only the result of declining
+  to choose. See :ref:`the following entry <faq-enable-reference>` for why that
+  distinction matters.
+
+.. _faq-enable-reference:
+
+Why can the reference implementation be enabled explicitly?
+-----------------------------------------------------------
+
+The difference is precedence.  Enabling nothing lets the domain's environment
+variable choose, which is the point of the variable; an explicit call overrides
+it.  So a test that must run against the reference implementation, whatever the
+surrounding environment sets, has to be able to name it.
+
+``enable_engine(domain, coheriq.REFERENCE)`` is how it is named.
 
 Why ``Domain``?
 ---------------
@@ -541,8 +729,8 @@ mean by resetting:
 The principle this leaves us with: **reset at the Python level is a convenience;
 reset at the process level is a guarantee.** Coheriq declines to ship a
 convenience that cannot be made a guarantee, and directs anyone who needs a
-different engine to a new process instead — which, for the HPC and MPI settings
-Coheriq targets, is already the normal unit of work.
+different engine to a new process instead — which, as noted
+:ref:`above <faq-one-way>`, is already the normal unit of work here.
 
 More than one engine active per domain
 --------------------------------------
@@ -551,7 +739,13 @@ A domain runs at most one engine at a time. Coheriq does not support several
 engines being simultaneously active for the same domain. The supported way to
 get the benefit of multiple engines is to **compose them through inheritance**
 into a single hybrid engine, which resolves overrides via a single, well-defined
-MRO rather than an ambiguous runtime blend.
+MRO rather than an ambiguous runtime blend. See
+:ref:`why only one engine is active <faq-one-engine>` for why the rule is drawn
+this way.
+
+If the goal is to *compare* implementations rather than combine them, see
+:ref:`the question on comparing an engine against the reference
+implementation <faq-comparing-implementations>`.
 
 Optimizing for non-Python callers
 ----------------------------------

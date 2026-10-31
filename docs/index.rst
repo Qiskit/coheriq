@@ -41,9 +41,10 @@ implementation of any subset of those candidates:
 
 .. code-block:: python
 
+   import mylib
    from coheriq import AccelerationEngine
 
-   _engine = AccelerationEngine("mylib", "jax-accelerated")
+   _engine = AccelerationEngine(mylib, "jax-accelerated")
 
    @_engine.override
    def normalize(xs):
@@ -61,7 +62,7 @@ about their code changes:
    import coheriq
    import mylib
 
-   coheriq.enable_engine("mylib", "jax-accelerated")
+   coheriq.enable_engine(mylib, "jax-accelerated")
 
    mylib.normalize([1.0, 2.0, 3.0])   # now runs on JAX, via the engine
 
@@ -87,3 +88,4 @@ License
    Design FAQ <design-faq>
    Demonstrations <demos/index>
    API References <apidocs/index>
+   Release notes <release-notes>
