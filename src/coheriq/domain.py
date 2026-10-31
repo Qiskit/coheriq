@@ -294,6 +294,9 @@ def resolve_impl(candidate: _F) -> _F:
     afterwards no engine can be enabled.  For the original, ignoring any engine, use
     ``candidate.__wrapped__`` instead, which has no such side effect.
 
+    This returns the implementation object.  To ask which engine is active by *name*,
+    without resolving anything, use :func:`~coheriq.active_engine`.
+
     Args:
         candidate: A class or function marked as an acceleration candidate.
 
