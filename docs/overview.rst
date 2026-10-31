@@ -23,6 +23,14 @@ every user has.  Folding such an implementation directly into the library would
 force that cost on everyone and make the accelerated behavior a mandatory,
 un-opt-out-able upgrade.
 
+Some implementations are more specialized still.  An implementation tuned for
+one processor's vector extensions and one machine's memory hierarchy may be
+valuable on a handful of installations in the world and irrelevant everywhere
+else.  Such work is not merely inconvenient to upstream; it should *not* be
+upstreamed, because no library maintainer can reasonably test or carry it.  A
+plugin model is the only arrangement in which it reaches the users it was
+written for.
+
 Coheriq exists so that acceleration can be **optional, decentralized, and
 drop-in**:
 
@@ -55,8 +63,9 @@ That word *coherent* is deliberate, and it is where the name **Coheriq** comes
 from.  The framework is built so that an implementation is swapped as one
 coherent piece rather than assembled from independently overridden fragments —
 which is what keeps the result consistent, composable, and easy to reason about.
-The :doc:`design FAQ <../design-faq>` develops why substituting whole units is
-preferable to overriding individual functions.
+The :ref:`design FAQ <faq-coherent-units>` develops why substituting whole
+units is preferable to overriding individual functions, beginning with the
+**half-accelerated limbo state** that whole-unit substitution rules out.
 
 
 The three parties
@@ -89,9 +98,13 @@ User (the caller)
 The activation contract
 =======================
 
-The rules governing engine activation are deliberately restrictive.  Each
-restriction removes a class of failure mode rather than limiting anything a
-user realistically needs to do.
+The rules governing engine activation follow the shape of the environments
+Coheriq is built for.  **The activation model is the job scheduler's model.** A
+scheduler allocates resources for the life of a job; SPMD ranks are fixed at
+launch; ``srun`` and ``mpirun`` settle the world size before Python starts.
+Nothing about that allocation is renegotiated halfway through the run.
+Activation works the same way: chosen once, before work begins, for the whole
+process.
 
 One engine per domain
     A domain can have at most one engine enabled at a time.  This keeps the
@@ -99,15 +112,17 @@ One engine per domain
     typically wrote none of them.
 
 Process-global
-    Activation applies to the whole process.  It is unlikely that different
-    parts of the same program need different implementations of the same
-    library, and a global choice keeps the model simple.
+    Activation applies to the whole process — the same unit the scheduler
+    allocated resources to.  An engine's device contexts, communicators, and
+    memory pools belong to the process, so the choice of engine does too.
 
 One-way
     Once an engine is active it cannot be swapped for another or disabled.
-    There is no reset in the public API.  Selecting the reference
-    implementation explicitly is a move *into* that settled state rather than
-    an escape from it, so it is permitted; disabling an active engine is not.
+    There is no reset in the public API.  A job runs one configuration from
+    start to finish; a different configuration is a different job.  Selecting
+    the reference implementation explicitly is a move *into* that settled state
+    rather than an escape from it, so it is permitted; disabling an active
+    engine is not.
 
 Before first use
     An engine must be enabled *before* any marked function or class is used.
