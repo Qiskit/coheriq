@@ -1,0 +1,12 @@
+---
+features:
+  - |
+    Coheriq now ships a :pep:`561` ``py.typed`` marker, so type checkers read
+    the annotations in the package instead of treating it as untyped.  A project
+    that imports Coheriq and runs Mypy previously had to silence an
+    ``import-untyped`` error; that error no longer occurs.
+
+    The :meth:`~coheriq.AccelerationDomain.acceleration_candidate` and
+    :meth:`~coheriq.AccelerationEngine.override` decorators now also preserve
+    the signature of what they decorate, so a call through a marked function is
+    checked against the function's own parameters and return type.

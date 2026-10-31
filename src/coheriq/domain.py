@@ -23,7 +23,7 @@ from enum import Enum
 from inspect import isclass
 from threading import Lock
 from types import ModuleType
-from typing import TYPE_CHECKING, Final
+from typing import TYPE_CHECKING, Final, TypeVar, overload
 
 from .exceptions import (
     CoheriqDomainError,
@@ -32,6 +32,8 @@ from .exceptions import (
 
 if TYPE_CHECKING:
     from .engine import AccelerationEngine
+
+_F = TypeVar("_F", bound=Callable)
 
 _domain_registry_lock = Lock()
 _domain_registry: dict[str, AccelerationDomain] = {}
@@ -193,7 +195,16 @@ class AccelerationDomain:
 
         enable_engine(self, engine_name)
 
-    def acceleration_candidate(
+    if TYPE_CHECKING:
+        # Preserve the decorated object's own type for type checkers.
+        @overload
+        def acceleration_candidate(self, func: _F, /) -> _F: ...
+        @overload
+        def acceleration_candidate(
+            self, func: str | None = None, /, *, name: str | None = None
+        ) -> Callable[[_F], _F]: ...
+
+    def acceleration_candidate(  # type: ignore[no-redef]
         self, func: Callable | str | None = None, /, *, name: str | None = None
     ) -> Callable:
         """Mark ``func`` as a candidate for acceleration and return a dispatching wrapper."""
