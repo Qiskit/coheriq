@@ -12,6 +12,7 @@ All Coheriq exceptions derive from :exc:`~coheriq.CoheriqError`.
 .. autoexception:: coheriq.CoheriqUserError
 .. autoexception:: coheriq.CoheriqDomainNotFoundError
 .. autoexception:: coheriq.CoheriqEngineNotFoundError
+.. autoexception:: coheriq.CoheriqTypeError
 
 Warnings
 ========

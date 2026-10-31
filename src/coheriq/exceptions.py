@@ -45,6 +45,15 @@ class CoheriqEngineNotFoundError(CoheriqUserError):
     """Error caused by referencing a non-existent engine by name."""
 
 
+class CoheriqTypeError(CoheriqUserError, TypeError):
+    """Error caused by passing the wrong kind of object to a Coheriq API.
+
+    Inherits from both :class:`CoheriqUserError` and the built-in
+    :class:`TypeError`, so it is caught by ``except CoheriqError`` (or
+    ``except CoheriqUserError``) as well as ``except TypeError``.
+    """
+
+
 class CoheriqWarning(UserWarning):
     """Base class for all Coheriq warnings."""
 
