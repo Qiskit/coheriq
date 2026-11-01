@@ -31,4 +31,3 @@ jobs:
       - name: Run lint check
         run: |
           tox -e lint
-
