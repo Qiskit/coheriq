@@ -138,11 +138,13 @@ class AccelerationEngine:
         @overload
         def override(self, func: _F, /) -> _F: ...
         @overload
+        def override(self, func: str, /, *, name: None = None) -> Callable[[_F], _F]: ...
+        @overload
         def override(
-            self, func: str | None = None, /, *, name: str | None = None
+            self, func: None = None, /, *, name: str | None = None
         ) -> Callable[[_F], _F]: ...
 
-    def override(  # type: ignore[no-redef]
+    def override(
         self, func: Callable | str | None = None, /, *, name: str | None = None
     ) -> Callable:
         """Register ``func`` as this engine's override for a domain candidate."""

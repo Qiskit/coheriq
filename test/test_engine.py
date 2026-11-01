@@ -47,6 +47,20 @@ def f():
     return 42
 
 
+def _make_f_named_override():
+    """Build an override whose __name__ is "f", for the no-argument form.
+
+    @engine.override() takes the lookup name from __name__, so exercising that
+    path needs a function actually named "f" without shadowing the module-level
+    one.
+    """
+
+    def f():
+        return g()
+
+    return f
+
+
 def g(n=42):
     return 2 * n
 
@@ -75,11 +89,24 @@ class TestDomainConstruction:
 
     def test_none_name(self):
         with pytest.raises(CoheriqDomainError):
-            AccelerationDomain(None)
+            AccelerationDomain(None)  # pyright: ignore[reportArgumentType]  # wrong type on purpose
 
     def test_nonstring_name(self):
         with pytest.raises(CoheriqDomainError):
-            AccelerationDomain(1)
+            AccelerationDomain(1)  # pyright: ignore[reportArgumentType]  # wrong type on purpose
+
+    def test_no_argument_form(self):
+        # @candidate() is redundant with @candidate but accepted; the lookup
+        # name still falls back to __name__.
+        domain = AccelerationDomain("foo")
+
+        @domain.acceleration_candidate()
+        def f():
+            return 42
+
+        assert "f" in domain._dict
+        domain.materialize()
+        assert f() == 42
 
     def test_double_materialize(self):
         domain = AccelerationDomain("foo")
@@ -125,11 +152,11 @@ class TestEngineConstruction:
 
     def test_none_name(self, domain_name):
         with pytest.raises(CoheriqEngineError):
-            AccelerationEngine(domain_name, None)
+            AccelerationEngine(domain_name, None)  # pyright: ignore[reportArgumentType]  # wrong type on purpose
 
     def test_nonstring_name(self, domain_name):
         with pytest.raises(CoheriqEngineError):
-            AccelerationEngine(domain_name, 1)
+            AccelerationEngine(domain_name, 1)  # pyright: ignore[reportArgumentType]  # wrong type on purpose
 
     def test_double_materialize(self, domain_name):
         engine = AccelerationEngine(domain_name, "bar")
@@ -183,6 +210,20 @@ class TestEngineEnablement:
         domain.materialize()
         engine = AccelerationEngine("foo", "bar")
         engine.override(name="f")(g)
+        engine.materialize()
+        enable_engine(domain, "bar")
+        assert wrapped_f() == g()
+
+    def test_override_no_argument_form(self):
+        # @override() is redundant with @override but accepted, matching
+        # acceleration_candidate.
+        domain = AccelerationDomain("foo")
+        wrapped_f = domain.acceleration_candidate(f)
+        domain.materialize()
+        engine = AccelerationEngine("foo", "bar")
+        # The lookup name comes from __name__, so the override must be named
+        # after the candidate it replaces.
+        engine.override()(_make_f_named_override())
         engine.materialize()
         enable_engine(domain, "bar")
         assert wrapped_f() == g()
@@ -735,7 +776,7 @@ class TestDomainAsModule:
         with pytest.raises(
             CoheriqEngineError, match="must be an AccelerationDomain, a module, or the name of"
         ):
-            AccelerationEngine(42, "fast")
+            AccelerationEngine(42, "fast")  # pyright: ignore[reportArgumentType]  # wrong type on purpose
 
 
 class TestDomainNotFoundMessage:

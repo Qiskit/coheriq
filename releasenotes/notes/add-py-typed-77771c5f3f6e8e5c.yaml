@@ -10,3 +10,8 @@ features:
     :meth:`~coheriq.AccelerationEngine.override` decorators now also preserve
     the signature of what they decorate, so a call through a marked function is
     checked against the function's own parameters and return type.
+
+    A type checker now also rejects passing a lookup name both positionally and
+    by keyword, as in ``@domain.acceleration_candidate("a", name="b")``.  Every
+    other call form is accepted, including the redundant ``@candidate()`` with
+    no argument.

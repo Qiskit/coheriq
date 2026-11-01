@@ -38,6 +38,9 @@ tox -e coverage-spawn
 # Lint (ruff format check, ruff check, mypy, pylint, copyright check)
 tox -e lint
 
+# Type-check with pyright instead of mypy (not in envlist; see below)
+tox -e pyright
+
 # Auto-fix style issues
 tox -e style
 
@@ -52,6 +55,20 @@ The `py`, `coverage`, and `doctest` tox environments run pytest with `--forked`,
 Neither spawn env is in `envlist`, so a bare `tox` does not run them. `--forked` remains the default on POSIX because it is roughly an order of magnitude faster. The Windows CI job's `toxenv` lists which envs run there.
 
 `doctest` still needs `--forked` and so remains Linux/macOS only.
+
+### Typing assertions live in `test/typing/`
+
+`src/coheriq/py.typed` promises downstream type checkers that `acceleration_candidate` and `override` preserve the signature of what they decorate. That promise lives entirely in `TYPE_CHECKING`-only `@overload` blocks, so no runtime test can observe it -- only a type checker can.
+
+`test/typing/check_decorators.py` holds those assertions. `tox -e lint` type-checks them; the directory is named in `addopts` as `--ignore`, so pytest never collects it. Two instruments appear there, and the difference matters: annotated assignment (`f: Callable[[int], str] = ...`) checks structurally and is what tests signature preservation, while `assert_type` compares *nominally* and cannot be used against a `Callable[...]` literal, because mypy reports a decorated function as `def (xs: list[float]) -> list[float]` rather than the equivalent `Callable`.
+
+Negative cases are spelled as `# type: ignore[code]` and rely on `warn_unused_ignores` in `[tool.mypy]`: if a construct that should fail stops failing, the ignore becomes unnecessary and mypy reports it. That is what keeps the negative assertions honest. These must be written as decorator *applications*, not bare calls. A bare `domain.acceleration_candidate()` matches the first overload with the TypeVar left unsolved and is accepted; only applying the result forces mypy to choose a factory overload.
+
+Two type checkers run in `tox -e lint`: `mypy src/ test/` and `pyright`. Pyright is there because `py.typed` is a promise to every checker, not just to mypy, and pyright is what most downstream users' editors actually run. Both cover `src/` and the test suite; `[tool.pyright]` pins `pythonVersion` to match `[tool.mypy]`, so the two answer the same question and a local run matches CI.
+
+The two disagree in one place that matters. Pyright rejects the deliberately-wrong argument types in `test_engine.py` that exercise runtime type errors, where mypy accepts them. Those sites carry `# pyright: ignore[reportArgumentType]`, which mypy does not read as a suppression at all -- a `# type: ignore` there would instead be reported as unused under `warn_unused_ignores`.
+
+Both checkers skip `test/coverage_startup/` and `test/spawn_isolation/`, named in `exclude` in each tool's config. The first is a vendored copy of pytest-forked, kept comparable to upstream rather than annotated; the second is our own pytest plugin, which type-checks no more cleanly against pytest's internals. Neither is part of the typed surface.
 
 ### The example engine (`example/engine`) is a compiled C++/nanobind package
 

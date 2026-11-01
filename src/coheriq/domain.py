@@ -201,10 +201,14 @@ class AccelerationDomain:
         def acceleration_candidate(self, func: _F, /) -> _F: ...
         @overload
         def acceleration_candidate(
-            self, func: str | None = None, /, *, name: str | None = None
+            self, func: str, /, *, name: None = None
+        ) -> Callable[[_F], _F]: ...
+        @overload
+        def acceleration_candidate(
+            self, func: None = None, /, *, name: str | None = None
         ) -> Callable[[_F], _F]: ...
 
-    def acceleration_candidate(  # type: ignore[no-redef]
+    def acceleration_candidate(
         self, func: Callable | str | None = None, /, *, name: str | None = None
     ) -> Callable:
         """Mark ``func`` as a candidate for acceleration and return a dispatching wrapper."""
@@ -222,7 +226,6 @@ class AccelerationDomain:
                 raise CoheriqDomainError(
                     f"name must be None or a string, got {type(f).__name__} instead"
                 )
-
             # Bind the checked name to a local.  `name` is nonlocal, so nothing
             # stops it changing after `decorator` returns, and `wrapper` runs
             # later -- it must close over the value validated here, not over a
