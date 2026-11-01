@@ -223,16 +223,23 @@ class AccelerationDomain:
                     f"name must be None or a string, got {type(f).__name__} instead"
                 )
 
+            # Bind the checked name to a local.  `name` is nonlocal, so nothing
+            # stops it changing after `decorator` returns, and `wrapper` runs
+            # later -- it must close over the value validated here, not over a
+            # cell that could since have become None.
+            lookup_name = name
+
             f_impl: Callable | None = None
 
             @functools.wraps(f)
             def wrapper(*args, **kwargs):
                 nonlocal f_impl
-                if f_impl is None:
+                impl = f_impl
+                if impl is None:
                     self._ensure_realized_impl()
-                    f_impl = getattr(self._impl, name)
+                    impl = f_impl = getattr(self._impl, lookup_name)
 
-                return f_impl(*args, **kwargs)
+                return impl(*args, **kwargs)
 
             with self._lock:
                 if self._state != _DomainState.CONSTRUCTING:
@@ -245,7 +252,7 @@ class AccelerationDomain:
                     # is preferable not to have this level of indirection, so we
                     # return the original class so type checking can succeed.
                     return f  # pragma: no cover
-                self._dict[name] = f
+                self._dict[lookup_name] = f
 
             return wrapper
 
