@@ -214,9 +214,12 @@ class AccelerationDomain:
         """Mark ``func`` as a candidate for acceleration and return a dispatching wrapper."""
         # Do the right thing in the case where somebody passed the `name` in
         # place of `func`.
-        if name is None and isinstance(func, str):
-            name = func
-            func = None
+        if isinstance(func, str):
+            if name is None:
+                name = func
+                func = None
+            else:
+                raise TypeError("Expecting a callable, got a string instead")
 
         def decorator(f) -> Callable:
             nonlocal name

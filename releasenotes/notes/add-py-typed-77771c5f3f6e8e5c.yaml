@@ -15,3 +15,15 @@ features:
     by keyword, as in ``@domain.acceleration_candidate("a", name="b")``.  Every
     other call form is accepted, including the redundant ``@candidate()`` with
     no argument.
+upgrade:
+  - |
+    :meth:`~coheriq.AccelerationDomain.acceleration_candidate` now raises
+    :exc:`TypeError` when a lookup name is passed both positionally and as the
+    ``name`` keyword, which is what
+    :meth:`~coheriq.AccelerationEngine.override` has always done.
+
+    The call could not have worked before.  The positional string was taken as
+    the object to decorate, so the string itself became the candidate and the
+    resulting wrapper raised ``'str' object is not callable`` on its first
+    call.  There is no working code to migrate, so this is a corrected error
+    rather than a behavior change.

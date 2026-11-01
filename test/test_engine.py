@@ -108,6 +108,19 @@ class TestDomainConstruction:
         domain.materialize()
         assert f() == 42
 
+    def test_both_name_forms_rejected(self):
+        # Matches AccelerationEngine.override, which has always raised here.
+        # No existing code can be relying on the old behavior: the positional
+        # string was taken as the object to decorate, so the candidate was the
+        # string itself and the wrapper raised "'str' object is not callable"
+        # on the first call.
+        domain = AccelerationDomain("foo")
+        with pytest.raises(TypeError, match="Expecting a callable"):
+            domain.acceleration_candidate(  # pyright: ignore[reportCallIssue]
+                "positional",
+                name="keyword",  # pyright: ignore[reportArgumentType]
+            )
+
     def test_double_materialize(self):
         domain = AccelerationDomain("foo")
         domain.materialize()
@@ -213,6 +226,17 @@ class TestEngineEnablement:
         engine.materialize()
         enable_engine(domain, "bar")
         assert wrapped_f() == g()
+
+    def test_override_both_name_forms_rejected(self):
+        domain = AccelerationDomain("foo")
+        domain.acceleration_candidate(f)
+        domain.materialize()
+        engine = AccelerationEngine("foo", "bar")
+        with pytest.raises(TypeError, match="Expecting a callable"):
+            engine.override(  # pyright: ignore[reportCallIssue]
+                "positional",
+                name="keyword",  # pyright: ignore[reportArgumentType]
+            )
 
     def test_override_no_argument_form(self):
         # @override() is redundant with @override but accepted, matching
