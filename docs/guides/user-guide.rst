@@ -70,7 +70,7 @@ In the current version of Coheriq it comes first and is the one you get if you
 enable nothing.  Any other names are acceleration engines you have installed.
 
 The single entry above is therefore the answer on a machine with no engine
-installed, and the next section is where to start.  If you already see a name
+installed.  If you already see a name
 beyond ``'reference'``, that engine is ready and you can skip ahead to
 :ref:`activation <ug-activate>`.
 
