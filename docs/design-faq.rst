@@ -14,6 +14,8 @@ The :doc:`conceptual overview <overview>` introduces the vocabulary
 The dispatch mechanism
 ======================
 
+.. _faq-coherent-units:
+
 Why substitute whole coherent units instead of overriding individual functions?
 --------------------------------------------------------------------------------
 
@@ -163,10 +165,10 @@ large and coherent enough that a single, one-time choice is what you want.
 The activation contract
 ========================
 
-Coheriq's rules for activating an engine are deliberately restrictive. Each
-restriction removes a class of failure mode rather than limiting anything a
-user realistically needs to do. The guiding principle is *as simple as
-possible, but no simpler.*
+Coheriq's rules for activating an engine mirror the way the environments it
+targets provision work: a configuration is settled before a job starts and holds
+for that job's lifetime. Each rule below also removes a class of failure mode.
+The guiding principle is *as simple as possible, but no simpler.*
 
 .. _faq-one-engine:
 
@@ -211,6 +213,8 @@ inconsistent state that is difficult to reason about and easy to get wrong.
 Requiring activation up front makes the data layout coherent for the entire
 lifetime of the process.
 
+.. _faq-one-way:
+
 Why is activation one-way, with no disable and no reset?
 --------------------------------------------------------
 
@@ -218,9 +222,15 @@ Once an implementation is active, it cannot be swapped for a different one or
 turned off, and there is no reset in the public API. This follows from the
 before-first-use rule: allowing a later switch would reintroduce exactly the
 inconsistent-state failure mode that rule exists to prevent. One-way activation
-eliminates a whole category of "how did I get into this state?" bugs and does
-not meaningfully restrict what a user can accomplish — to use a different
-engine, start a new process.
+eliminates a whole category of "how did I get into this state?" bugs.
+
+The cost of this is lower than it first appears, because **the process is
+already the unit of work** in the settings Coheriq targets. A batch job is
+submitted with its resources fixed; running a second configuration means
+submitting a second job, not reconfiguring the first one mid-flight. "Start a
+new process to use a different engine" asks for nothing a user of such a system
+was not doing anyway. On a workstation it costs an interpreter restart, which is
+the same thing a user does to change their BLAS thread count.
 
 "One-way" governs transitions, not which engine is chosen.  Selecting the
 reference implementation explicitly (see :ref:`faq-enable-reference`) is a
@@ -235,12 +245,16 @@ Why is activation process-global rather than per-call or scoped?
 ----------------------------------------------------------------
 
 Activation applies to the entire process, not to a call, a thread, or a
-``with`` block. It is unlikely that different parts of the same program
-genuinely need different implementations of the same library, and a single
-global choice keeps the model simple and predictable. This also mirrors how
-related execution configuration is conventionally handled (for example, the
-number of BLAS or OpenMP threads is typically set once per process, before
-work begins).
+``with`` block. The process is the unit the surrounding system already works in:
+a batch scheduler allocates resources to it, ``srun`` and ``mpirun`` fix the
+world size before it starts, and the device contexts, communicators, and memory
+pools an engine owns live and die with it. Selecting an implementation per
+process matches the granularity at which the resources to run that
+implementation were granted.
+
+This also mirrors how related execution configuration is conventionally handled
+(for example, the number of BLAS or OpenMP threads is typically set once per
+process, before work begins).
 
 There is a designed escape hatch for the rare case where global configuration
 is genuinely too coarse: an API may accept an opaque ``execution_context``
@@ -715,8 +729,8 @@ mean by resetting:
 The principle this leaves us with: **reset at the Python level is a convenience;
 reset at the process level is a guarantee.** Coheriq declines to ship a
 convenience that cannot be made a guarantee, and directs anyone who needs a
-different engine to a new process instead — which, for the HPC and MPI settings
-Coheriq targets, is already the normal unit of work.
+different engine to a new process instead — which, as noted
+:ref:`above <faq-one-way>`, is already the normal unit of work here.
 
 More than one engine active per domain
 --------------------------------------

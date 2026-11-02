@@ -17,9 +17,9 @@ import sys
 from importlib.metadata import version as metadata_version
 
 project = "Coheriq"
-project_copyright = "2026, Qiskit addons team"
+project_copyright = "2026, IBM and its contributors"
 description = "Dispatch decorator framework"
-author = "Qiskit addons team"
+author = "IBM Quantum"
 language = "en"
 release = metadata_version("coheriq")
 

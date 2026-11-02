@@ -158,17 +158,19 @@ class AccelerationEngine:
                 raise TypeError("Expecting a callable, got a string instead")
 
         def decorator(f: Callable) -> Callable:
-            nonlocal name
-            if name is None:
-                name = f.__name__
-            if not isinstance(name, str):
+            # Resolve into a local rather than assigning back to `name`.  The
+            # factory this returns may be applied more than once, and writing
+            # the first function's __name__ into the enclosing scope would make
+            # every later decoration reuse it.
+            lookup_name = f.__name__ if name is None else name
+            if not isinstance(lookup_name, str):
                 raise CoheriqEngineError(
                     f"name must be None or a string, got {type(f).__name__} instead"
                 )
 
-            if name not in self._domain._dict:
+            if lookup_name not in self._domain._dict:
                 raise CoheriqEngineError(
-                    f"Name '{name}' is not defined in domain '{self._domain._name}'"
+                    f"Name '{lookup_name}' is not defined in domain '{self._domain._name}'"
                 )
 
             with self._lock:
@@ -176,7 +178,7 @@ class AccelerationEngine:
                     raise CoheriqEngineError(
                         "Cannot mark a function after the domain is materialized"
                     )
-                self._dict[name] = f
+                self._dict[lookup_name] = f
 
             return f
 

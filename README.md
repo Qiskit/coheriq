@@ -1,3 +1,13 @@
+[![PyPI](https://img.shields.io/pypi/v/coheriq?label=PyPI)](https://pypi.org/project/coheriq/)
+[![Python](https://img.shields.io/pypi/pyversions/coheriq?label=Python)](https://pypi.org/project/coheriq/)
+![Operating systems](https://img.shields.io/badge/%F0%9F%92%BB%20Operating_systems-Linux%20%7C%20macOS%20%7C%20Windows-informational)
+[![License](https://img.shields.io/github/license/Qiskit/coheriq?label=License)](LICENSE.txt)
+<br/>
+[![Docs](https://img.shields.io/badge/%F0%9F%93%84%20Docs-stable-blue.svg)](https://qiskit.github.io/coheriq/)
+[![Tests](https://github.com/Qiskit/coheriq/actions/workflows/test_latest_versions.yml/badge.svg?branch=main)](https://github.com/Qiskit/coheriq/actions/workflows/test_latest_versions.yml)
+[![Lint](https://github.com/Qiskit/coheriq/actions/workflows/lint.yml/badge.svg?branch=main)](https://github.com/Qiskit/coheriq/actions/workflows/lint.yml)
+[![Coverage](https://coveralls.io/repos/github/Qiskit/coheriq/badge.svg?branch=main)](https://coveralls.io/github/Qiskit/coheriq?branch=main)
+
 # coheriq
 
 **Swap in an accelerated implementation of a library — without changing the code that calls it.**
@@ -5,6 +15,8 @@
 Coheriq is a dispatch decorator framework. A library marks certain functions and classes as *candidates for acceleration*; a separate, independently published package can then replace their implementations at runtime. The user enables the accelerated version by setting an environment variable or in one line of Python, and every call site transparently begins using it.
 
 This lets acceleration be **optional** (users who can't or don't want the fast path keep the default, and pay none of its install cost), **decentralized** (a GPU/MPI/HPC engine ships as its own package, maintained by a different team), and **drop-in** (no call site changes).
+
+Coheriq grew out of work at the intersection of quantum computing and high-performance computing (HPC). The [Qiskit addons](https://quantum.cloud.ibm.com/docs/en/guides/addons) are a case in point: they typically provide high-level Python interfaces to classically expensive problems. Such an interface is a natural boundary — it can stay fixed while the heavy implementation underneath is swapped for one built by HPC specialists.
 
 ## The mental model: three parties
 
@@ -23,12 +35,13 @@ def normalize(xs):
 _domain.materialize()
 ```
 
-**2. An acceleration engine** — typically a separate package — provides a faster/better implementation of any subset of those candidates:
+**2. An acceleration engine** — often a separate package — provides a faster/better implementation of any subset of those candidates:
 
 ```python
+import mylib
 from coheriq import AccelerationEngine
 
-_engine = AccelerationEngine("mylib", "jax-accelerated")
+_engine = AccelerationEngine(mylib, "jax-accelerated")
 
 @_engine.override
 def normalize(xs):
@@ -45,16 +58,26 @@ _engine.materialize()
 import coheriq
 import mylib
 
-coheriq.enable_engine("mylib", "jax-accelerated")
+coheriq.enable_engine(mylib, "jax-accelerated")
 
 mylib.normalize([1.0, 2.0, 3.0])   # now runs on JAX, via the engine
 ```
 
 Engines are ordinary Python classes under the hood, so independently developed engines can be combined through diamond inheritance into a hybrid that delivers all of their accelerations at once.
 
+## Installation
+
+```bash
+pip install coheriq
+```
+
+Coheriq itself has no required dependencies beyond the standard library, and ships as a lightweight universal wheel. An acceleration engine is often a separate package, installed only if you want one.
+
 ## Supported platforms
 
-Coheriq targets Linux, macOS, and Windows.
+Coheriq is pure Python and ships as a universal wheel, so it runs anywhere its supported Python versions run.
+
+Continuous integration covers Linux, macOS, and Windows, on both x86_64 and ARM.
 
 ## Stability policy
 
@@ -73,6 +96,8 @@ coheriq>=0.4,<0.10
 ```
 
 That picks up bug fixes and new features automatically, and stops before the release that would require attention. Without the multiple-of-ten rule, a version number could not distinguish a release that adds features from one that breaks you, leaving `<0.5` as the only safe cap and a pin bump due on every feature release.
+
+The multiple-of-ten rule applies only before 1.0.0. After that, a breaking change advances the major version, as ordinary semantic versioning requires.
 
 ## Documentation
 

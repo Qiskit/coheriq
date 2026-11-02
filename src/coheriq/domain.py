@@ -222,19 +222,15 @@ class AccelerationDomain:
                 raise TypeError("Expecting a callable, got a string instead")
 
         def decorator(f) -> Callable:
-            nonlocal name
-            if name is None:
-                name = f.__name__
-            if not isinstance(name, str):
+            # Resolve into a local rather than assigning back to `name`.  The
+            # factory this returns may be applied more than once, and writing
+            # the first function's __name__ into the enclosing scope would make
+            # every later decoration reuse it.
+            lookup_name = f.__name__ if name is None else name
+            if not isinstance(lookup_name, str):
                 raise CoheriqDomainError(
                     f"name must be None or a string, got {type(f).__name__} instead"
                 )
-            # Bind the checked name to a local.  `name` is nonlocal, so nothing
-            # stops it changing after `decorator` returns, and `wrapper` runs
-            # later -- it must close over the value validated here, not over a
-            # cell that could since have become None.
-            lookup_name = name
-
             f_impl: Callable | None = None
 
             @functools.wraps(f)
