@@ -16,6 +16,8 @@ Coheriq is a dispatch decorator framework. A library marks certain functions and
 
 This lets acceleration be **optional** (users who can't or don't want the fast path keep the default, and pay none of its install cost), **decentralized** (a GPU/MPI/HPC engine ships as its own package, maintained by a different team), and **drop-in** (no call site changes).
 
+Coheriq grew out of work at the intersection of quantum computing and high-performance computing (HPC). The [Qiskit addons](https://quantum.cloud.ibm.com/docs/en/guides/addons) are a case in point: they typically provide high-level Python interfaces to classically expensive problems. Such an interface is a natural boundary — it can stay fixed while the heavy implementation underneath is swapped for one built by HPC specialists.
+
 ## The mental model: three parties
 
 **1. The library (the "domain")** marks what *could* be accelerated and provides the default implementation:
@@ -33,12 +35,13 @@ def normalize(xs):
 _domain.materialize()
 ```
 
-**2. An acceleration engine** — typically a separate package — provides a faster/better implementation of any subset of those candidates:
+**2. An acceleration engine** — often a separate package — provides a faster/better implementation of any subset of those candidates:
 
 ```python
+import mylib
 from coheriq import AccelerationEngine
 
-_engine = AccelerationEngine("mylib", "jax-accelerated")
+_engine = AccelerationEngine(mylib, "jax-accelerated")
 
 @_engine.override
 def normalize(xs):
@@ -55,7 +58,7 @@ _engine.materialize()
 import coheriq
 import mylib
 
-coheriq.enable_engine("mylib", "jax-accelerated")
+coheriq.enable_engine(mylib, "jax-accelerated")
 
 mylib.normalize([1.0, 2.0, 3.0])   # now runs on JAX, via the engine
 ```
@@ -68,11 +71,13 @@ Engines are ordinary Python classes under the hood, so independently developed e
 pip install coheriq
 ```
 
-Coheriq itself has no required dependencies beyond the standard library, and ships as a lightweight universal wheel. An acceleration engine is a separate package, installed only if you want one.
+Coheriq itself has no required dependencies beyond the standard library, and ships as a lightweight universal wheel. An acceleration engine is often a separate package, installed only if you want one.
 
 ## Supported platforms
 
-Coheriq targets Linux, macOS, and Windows.
+Coheriq is pure Python and ships as a universal wheel, so it runs anywhere its supported Python versions run.
+
+Continuous integration covers Linux, macOS, and Windows, on both x86_64 and ARM.
 
 ## Stability policy
 
@@ -91,6 +96,8 @@ coheriq>=0.4,<0.10
 ```
 
 That picks up bug fixes and new features automatically, and stops before the release that would require attention. Without the multiple-of-ten rule, a version number could not distinguish a release that adds features from one that breaks you, leaving `<0.5` as the only safe cap and a pin bump due on every feature release.
+
+The multiple-of-ten rule applies only before 1.0.0. After that, a breaking change advances the major version, as ordinary semantic versioning requires.
 
 ## Documentation
 
