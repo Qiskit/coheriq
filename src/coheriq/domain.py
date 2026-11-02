@@ -23,7 +23,7 @@ from enum import Enum
 from inspect import isclass
 from threading import Lock
 from types import ModuleType
-from typing import TYPE_CHECKING, Final
+from typing import TYPE_CHECKING, Final, TypeVar, overload
 
 from .exceptions import (
     CoheriqDomainError,
@@ -32,6 +32,8 @@ from .exceptions import (
 
 if TYPE_CHECKING:
     from .engine import AccelerationEngine
+
+_F = TypeVar("_F", bound=Callable)
 
 _domain_registry_lock = Lock()
 _domain_registry: dict[str, AccelerationDomain] = {}
@@ -193,15 +195,31 @@ class AccelerationDomain:
 
         enable_engine(self, engine_name)
 
+    if TYPE_CHECKING:
+        # Preserve the decorated object's own type for type checkers.
+        @overload
+        def acceleration_candidate(self, func: _F, /) -> _F: ...
+        @overload
+        def acceleration_candidate(
+            self, func: str, /, *, name: None = None
+        ) -> Callable[[_F], _F]: ...
+        @overload
+        def acceleration_candidate(
+            self, func: None = None, /, *, name: str | None = None
+        ) -> Callable[[_F], _F]: ...
+
     def acceleration_candidate(
         self, func: Callable | str | None = None, /, *, name: str | None = None
     ) -> Callable:
         """Mark ``func`` as a candidate for acceleration and return a dispatching wrapper."""
         # Do the right thing in the case where somebody passed the `name` in
         # place of `func`.
-        if name is None and isinstance(func, str):
-            name = func
-            func = None
+        if isinstance(func, str):
+            if name is None:
+                name = func
+                func = None
+            else:
+                raise TypeError("Expecting a callable, got a string instead")
 
         def decorator(f) -> Callable:
             # Resolve into a local rather than assigning back to `name`.  The
@@ -213,17 +231,17 @@ class AccelerationDomain:
                 raise CoheriqDomainError(
                     f"name must be None or a string, got {type(f).__name__} instead"
                 )
-
             f_impl: Callable | None = None
 
             @functools.wraps(f)
             def wrapper(*args, **kwargs):
                 nonlocal f_impl
-                if f_impl is None:
+                impl = f_impl
+                if impl is None:
                     self._ensure_realized_impl()
-                    f_impl = getattr(self._impl, lookup_name)
+                    impl = f_impl = getattr(self._impl, lookup_name)
 
-                return f_impl(*args, **kwargs)
+                return impl(*args, **kwargs)
 
             with self._lock:
                 if self._state != _DomainState.CONSTRUCTING:

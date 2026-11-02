@@ -18,12 +18,13 @@ from collections.abc import Callable, Sequence
 from enum import Enum
 from threading import Lock
 from types import ModuleType
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, overload
 
 if TYPE_CHECKING:
     from typing_extensions import Self
 
 from .domain import (
+    _F,
     _RESERVED_ENGINE_NAME_PREFIX,
     AccelerationDomain,
     _domain_name_from_module,
@@ -131,6 +132,17 @@ class AccelerationEngine:
             if engine_name in domain._engine_registry:
                 raise CoheriqEngineError("engine name has already been used")
             domain._engine_registry[engine_name] = self
+
+    if TYPE_CHECKING:
+        # Preserve the decorated function's own type for type checkers.
+        @overload
+        def override(self, func: _F, /) -> _F: ...
+        @overload
+        def override(self, func: str, /, *, name: None = None) -> Callable[[_F], _F]: ...
+        @overload
+        def override(
+            self, func: None = None, /, *, name: str | None = None
+        ) -> Callable[[_F], _F]: ...
 
     def override(
         self, func: Callable | str | None = None, /, *, name: str | None = None

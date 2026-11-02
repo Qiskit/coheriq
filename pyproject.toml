@@ -69,6 +69,14 @@ lint = [
     {include-group = "style"},
     "pylint==4.0.5",
     "mypy==1.20.0",
+    "pyright==1.1.407",
+    # Pyright resolves imports from the environment, so it needs pytest
+    # present to check test/ -- without it every test file reports a missing
+    # import.  Mypy does not, because ignore_missing_imports makes an
+    # unresolvable import Any.  basetest carries the rest of the test
+    # dependencies and the reason for its upper bound; only the import itself
+    # matters for type checking.
+    {include-group = "basetest"},
     "reno>=4.1",
 ]
 notebook-dependencies = [
@@ -107,7 +115,27 @@ python_version = "3.10"
 show_error_codes = true
 warn_return_any = true
 warn_unused_configs = true
+# The negative assertions in test/typing/ are spelled as `type: ignore`
+# comments.  This is what reports one that has stopped being necessary, which
+# is how a silently-weakened overload gets caught.
+warn_unused_ignores = true
+# Test support code, not part of the typed surface.  coverage_startup holds a
+# vendored copy of pytest-forked, kept comparable to upstream rather than
+# annotated; spawn_isolation is our own pytest plugin, which type-checks no
+# more cleanly against pytest's internals.  Pyright excludes both as well.
+exclude = "^test/(coverage_startup|spawn_isolation)/"
+
 ignore_missing_imports = true
+
+[tool.pyright]
+# Pinned to match [tool.mypy] python_version, so the two checkers are
+# answering the same question and a local run matches CI.
+pythonVersion = "3.10"
+include = ["src", "test"]
+# Test support code; see the matching note under [tool.mypy].  Named here
+# rather than suppressed inline so the vendored pytest-forked copy stays
+# comparable to upstream.
+exclude = ["test/coverage_startup", "test/spawn_isolation"]
 
 [tool.pylint.main]
 py-version = "3.10"
@@ -132,7 +160,7 @@ enable = [
 
 [tool.pytest.ini_options]
 testpaths = ["./src/", "./test/"]
-addopts = "--ignore=test/coverage_startup --ignore=test/spawn_isolation"
+addopts = "--ignore=test/coverage_startup --ignore=test/spawn_isolation --ignore=test/typing"
 filterwarnings = [
     # Test domains are named for brevity rather than after an importable
     # package, which is exactly what CoheriqDomainWarning reports.  The tests
