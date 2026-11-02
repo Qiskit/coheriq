@@ -1,0 +1,18 @@
+---
+fixes:
+  - |
+    Fixed :meth:`~coheriq.AccelerationDomain.acceleration_candidate` and
+    :meth:`~coheriq.AccelerationEngine.override` reporting the wrong type when
+    passed a non-string ``name``.  The message named the type of the decorated
+    function rather than of ``name``, so ``name=123`` reported ``got function
+    instead``.  It now reports ``got int instead``.
+
+    Both decorators now also raise :exc:`~coheriq.CoheriqDomainError` and
+    :exc:`~coheriq.CoheriqEngineError`, respectively, when the decorated object
+    has no ``__name__`` to derive a lookup name from.  Previously this surfaced
+    as an :exc:`AttributeError` naming a dunder, which fell outside the
+    ``CoheriqError`` hierarchy and so escaped ``except CoheriqError``.  This
+    affected :func:`functools.partial` objects and instances of classes
+    defining ``__call__``, both of which are callable but carry no ``__name__``.
+    The new message suggests passing an explicit ``name``, which has always
+    worked for these objects.

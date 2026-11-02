@@ -150,10 +150,19 @@ class AccelerationEngine:
             # factory this returns may be applied more than once, and writing
             # the first function's __name__ into the enclosing scope would make
             # every later decoration reuse it.
-            lookup_name = f.__name__ if name is None else name
+            if name is None:
+                try:
+                    lookup_name = f.__name__
+                except AttributeError:
+                    raise CoheriqEngineError(
+                        f"Cannot determine a lookup name for {f!r}, which has no "
+                        f"__name__.  Pass an explicit name, as override(name=...)."
+                    ) from None
+            else:
+                lookup_name = name
             if not isinstance(lookup_name, str):
                 raise CoheriqEngineError(
-                    f"name must be None or a string, got {type(f).__name__} instead"
+                    f"name must be None or a string, got {type(lookup_name).__name__} instead"
                 )
 
             if lookup_name not in self._domain._dict:

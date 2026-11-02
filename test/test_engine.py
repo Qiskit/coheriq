@@ -10,6 +10,7 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
+import functools
 import importlib
 import sys
 import warnings
@@ -49,6 +50,13 @@ def f():
 
 def g(n=42):
     return 2 * n
+
+
+class _CallableInstance:
+    """A callable with no ``__name__``, unlike a function or a class."""
+
+    def __call__(self):
+        return 42
 
 
 def h(a=0, b=1):
@@ -104,6 +112,34 @@ class TestDomainConstruction:
         assert sorted(domain._dict) == ["alpha", "beta"]
         assert wrapped_alpha() == "A"
         assert wrapped_beta() == "B"
+
+    def test_nonstring_candidate_name_reports_its_type(self):
+        domain = AccelerationDomain("foo")
+        with pytest.raises(CoheriqDomainError, match="got int instead"):
+            domain.acceleration_candidate(name=123)(f)
+
+    @pytest.mark.parametrize(
+        "obj",
+        [
+            functools.partial(f),
+            _CallableInstance(),
+            123,
+        ],
+        ids=["partial", "callable_instance", "not_a_callable"],
+    )
+    def test_candidate_without_dunder_name(self, obj):
+        # The lookup name is derived from __name__, which partials and callable
+        # instances lack.  Raising CoheriqDomainError keeps these inside the
+        # CoheriqError hierarchy and points at the way through.
+        domain = AccelerationDomain("foo")
+        with pytest.raises(CoheriqDomainError, match="no __name__"):
+            domain.acceleration_candidate(obj)
+
+    def test_candidate_without_dunder_name_accepts_explicit_name(self):
+        domain = AccelerationDomain("foo")
+        wrapped = domain.acceleration_candidate(functools.partial(f), name="p")
+        domain.materialize()
+        assert wrapped() == f()
 
     def test_double_materialize(self):
         domain = AccelerationDomain("foo")
@@ -250,6 +286,41 @@ class TestEngineEnablement:
         domain.materialize()
         engine = AccelerationEngine("foo", "bar")
         engine.override("f")(g)
+        engine.materialize()
+        enable_engine(domain, "bar")
+        assert wrapped_f() == g()
+
+    def test_nonstring_override_name_reports_its_type(self):
+        domain = AccelerationDomain("foo")
+        domain.acceleration_candidate(f)
+        domain.materialize()
+        engine = AccelerationEngine("foo", "bar")
+        with pytest.raises(CoheriqEngineError, match="got int instead"):
+            engine.override(name=123)(g)
+
+    @pytest.mark.parametrize(
+        "obj",
+        [
+            functools.partial(g),
+            _CallableInstance(),
+            123,
+        ],
+        ids=["partial", "callable_instance", "not_a_callable"],
+    )
+    def test_override_without_dunder_name(self, obj):
+        domain = AccelerationDomain("foo")
+        domain.acceleration_candidate(f)
+        domain.materialize()
+        engine = AccelerationEngine("foo", "bar")
+        with pytest.raises(CoheriqEngineError, match="no __name__"):
+            engine.override(obj)
+
+    def test_override_without_dunder_name_accepts_explicit_name(self):
+        domain = AccelerationDomain("foo")
+        wrapped_f = domain.acceleration_candidate(f)
+        domain.materialize()
+        engine = AccelerationEngine("foo", "bar")
+        engine.override(functools.partial(g), name="f")
         engine.materialize()
         enable_engine(domain, "bar")
         assert wrapped_f() == g()
