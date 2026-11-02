@@ -81,6 +81,30 @@ class TestDomainConstruction:
         with pytest.raises(CoheriqDomainError):
             AccelerationDomain(1)
 
+    def test_factory_reuse_keeps_names_distinct(self):
+        # One decorator factory, no explicit name, applied to two functions.
+        # Each decoration must derive its own name from __name__; previously
+        # the first function's name was written into the enclosing scope, so
+        # the second decoration reused it and silently replaced the first
+        # registration.  A factory given an explicit name is a different case:
+        # both decorations legitimately claim that one name.
+        domain = AccelerationDomain("foo")
+        decorate = domain.acceleration_candidate()
+
+        def alpha():
+            return "A"
+
+        def beta():
+            return "B"
+
+        wrapped_alpha = decorate(alpha)
+        wrapped_beta = decorate(beta)
+        domain.materialize()
+
+        assert sorted(domain._dict) == ["alpha", "beta"]
+        assert wrapped_alpha() == "A"
+        assert wrapped_beta() == "B"
+
     def test_double_materialize(self):
         domain = AccelerationDomain("foo")
         domain.materialize()
@@ -186,6 +210,39 @@ class TestEngineEnablement:
         engine.materialize()
         enable_engine(domain, "bar")
         assert wrapped_f() == g()
+
+    def test_override_factory_reuse_keeps_names_distinct(self):
+        # Same bug on the engine side, where the symptom is worse: the first
+        # candidate dispatched to the second's override, and the second fell
+        # through to the unoverridden reference implementation.
+        domain = AccelerationDomain("foo")
+
+        def alpha():
+            return "A"
+
+        def beta():
+            return "B"
+
+        wrapped_alpha = domain.acceleration_candidate(alpha)
+        wrapped_beta = domain.acceleration_candidate(beta)
+        domain.materialize()
+
+        engine = AccelerationEngine("foo", "bar")
+        decorate = engine.override()
+
+        def alpha():
+            return "A2"
+
+        def beta():
+            return "B2"
+
+        decorate(alpha)
+        decorate(beta)
+        engine.materialize()
+        enable_engine(domain, "bar")
+
+        assert wrapped_alpha() == "A2"
+        assert wrapped_beta() == "B2"
 
     def test_override_implicit_name(self):
         domain = AccelerationDomain("foo")

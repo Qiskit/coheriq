@@ -1,0 +1,31 @@
+---
+fixes:
+  - |
+    Fixed :meth:`~coheriq.AccelerationDomain.acceleration_candidate` and
+    :meth:`~coheriq.AccelerationEngine.override` silently reusing one lookup
+    name when a single decorator factory was applied more than once::
+
+        decorate = domain.acceleration_candidate()
+
+        @decorate
+        def alpha(): ...
+
+        @decorate
+        def beta(): ...
+
+    Each decoration now resolves its own name from ``__name__``.  Previously
+    the first function's name was written into the enclosing scope, so the
+    second decoration reused it: ``beta`` was registered as ``alpha``,
+    replacing it, and calling either wrapper dispatched to ``beta``.
+
+    On the engine side the symptom was worse, since a missing override is not
+    an error.  The first candidate dispatched to the second candidate's
+    override, and the second fell through to the reference implementation as
+    though it had never been overridden.
+
+    Only the form above was affected, where the factory is given no name and
+    each decoration derives one from ``__name__``.  Reusing a factory that was
+    given an explicit name still registers both decorations under that name,
+    last write winning, as two separately created factories with the same name
+    already did.  Applying the decorator directly, as
+    ``@domain.acceleration_candidate``, was never affected.

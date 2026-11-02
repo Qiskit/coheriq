@@ -204,10 +204,12 @@ class AccelerationDomain:
             func = None
 
         def decorator(f) -> Callable:
-            nonlocal name
-            if name is None:
-                name = f.__name__
-            if not isinstance(name, str):
+            # Resolve into a local rather than assigning back to `name`.  The
+            # factory this returns may be applied more than once, and writing
+            # the first function's __name__ into the enclosing scope would make
+            # every later decoration reuse it.
+            lookup_name = f.__name__ if name is None else name
+            if not isinstance(lookup_name, str):
                 raise CoheriqDomainError(
                     f"name must be None or a string, got {type(f).__name__} instead"
                 )
@@ -219,7 +221,7 @@ class AccelerationDomain:
                 nonlocal f_impl
                 if f_impl is None:
                     self._ensure_realized_impl()
-                    f_impl = getattr(self._impl, name)
+                    f_impl = getattr(self._impl, lookup_name)
 
                 return f_impl(*args, **kwargs)
 
@@ -234,7 +236,7 @@ class AccelerationDomain:
                     # is preferable not to have this level of indirection, so we
                     # return the original class so type checking can succeed.
                     return f  # pragma: no cover
-                self._dict[name] = f
+                self._dict[lookup_name] = f
 
             return wrapper
 
