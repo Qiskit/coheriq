@@ -6,54 +6,122 @@ This guide is for people who **use** a library that has been built with
 Coheriq and want to turn on an acceleration engine for it.  You do not need to
 understand how the framework works internally to follow it.
 
-.. note::
+Everything here is done through Coheriq's own functions.  The library you are
+accelerating does not have to expose anything special, so the same four steps
+work for every Coheriq library:
 
-   Activating an engine is done through Coheriq's own
-   :func:`~coheriq.enable_engine` function, passing *the library itself* and the
-   engine you want.  You do not need the library to expose anything special for
-   this — the same call works for every Coheriq library.  Consult your library's
-   documentation for the engine names available to it.
+#. :ref:`Import the library <ug-import>` and confirm it declares a domain.
+#. :ref:`List the engines <ug-list>` available for it.
+#. :ref:`Install an engine <ug-install>`, if the one you want is not there yet.
+#. :ref:`Activate it <ug-activate>` at startup.
 
-
-Install an engine
-=================
-
-An acceleration engine is typically a separate Python package from the library it
-accelerates.  Install it the same way you install any other dependency, for
-example:
-
-.. code-block:: bash
-
-   pip install mylib-fast-engine
-
-Installing the engine does **not** change the library's behavior on its own.
-Nothing is accelerated until you explicitly enable the engine (or set the
-environment variable described below).
+Throughout, the library being accelerated is called ``mylib``.  Substitute the
+library you are actually using.
 
 
-Query the available engines
-===========================
+.. _ug-import:
 
-Which engine names are available depends on what you have installed.
-:func:`~coheriq.available_engines` lists the ones you can pass to
-:func:`~coheriq.enable_engine`:
+Confirm the library declares a domain
+=====================================
+
+A library that offers acceleration registers a **domain** — its list of
+functions and classes that an engine may replace.  Registration happens as a
+side effect of importing the library, so the first step is simply to import it:
 
 .. code-block:: python
 
    >>> import coheriq
    >>> import mylib
+
+:func:`~coheriq.known_domains` then reports the domains registered so far,
+which confirms whether the import gave you one:
+
+.. code-block:: python
+
+   >>> coheriq.known_domains()
+   ('mylib',)
+
+A domain is conventionally named after the module it belongs to, which is why
+``mylib`` appears here under the name you imported.  If the library you expected
+is missing from this list, it does not declare a domain, and nothing in this
+guide applies to it.  Check its documentation for whether it supports Coheriq,
+and whether the version you have does.
+
+This call reports only what the current process has imported.  A library that is
+installed but not yet imported has registered nothing, so import first and ask
+afterwards.
+
+
+.. _ug-list:
+
+List the available engines
+==========================
+
+:func:`~coheriq.available_engines` lists the engine names you can enable for a
+domain.  Pass it the library itself:
+
+.. code-block:: python
+
    >>> coheriq.available_engines(mylib)
-   ('reference', 'mylib-fast')
+   ('reference',)
 
 Every library has at least one entry: ``'reference'``, its own implementation.
 In the current version of Coheriq it comes first and is the one you get if you
 enable nothing.  Any other names are acceleration engines you have installed.
+
+The single entry above is therefore the answer on a machine with no engine
+installed, and the next section is where to start.  If you already see a name
+beyond ``'reference'``, that engine is ready and you can skip ahead to
+:ref:`activation <ug-activate>`.
 
 Asking this question does not activate anything, and it does not import the
 engine packages it names.  An engine can advertise itself without having been
 imported yet, so a listed name means :func:`~coheriq.enable_engine` will try it,
 not that it is guaranteed to load.
 
+:func:`~coheriq.active_engine` answers the companion question — which engine, if
+any, has been settled on.  It returns ``None`` until one is resolved:
+
+.. code-block:: python
+
+   >>> coheriq.active_engine(mylib) is None
+   True
+
+Neither call resolves or freezes the implementation, so both are safe to run
+before deciding what to enable.
+
+
+.. _ug-install:
+
+Install an engine
+=================
+
+An acceleration engine is often a separate Python package from the library
+it accelerates, and which engines exist is up to the library and its ecosystem.
+Consult your library's documentation for the ones it recommends.  Install an
+engine the same way you install any other dependency, for example:
+
+.. code-block:: bash
+
+   pip install mylib-fast-engine
+
+Installing the engine does **not** change the library's behavior on its own.
+Nothing is accelerated until you activate it.  After installing, the new engine
+appears alongside ``'reference'`` in a fresh process:
+
+.. code-block:: python
+
+   >>> coheriq.available_engines(mylib)
+   ('reference', 'fast-engine')
+
+Note that the name you enable is ``'fast-engine'``, not the
+``mylib-fast-engine`` you installed.  A package chooses its engine name
+independently of its distribution name, so take the name to enable from
+:func:`~coheriq.available_engines` or the engine's documentation rather than
+from the ``pip install`` line.
+
+
+.. _ug-activate:
 
 Activate an engine
 ==================
@@ -98,7 +166,8 @@ import has already happened:
 
 Reach for the string form only where the module form is unavailable — for
 instance in a single file that defines a domain and enables an engine for it,
-since such a file cannot import itself.
+since such a file cannot import itself.  In practice this means demonstrations
+and notebooks rather than application code.
 
 Via an environment variable
 ---------------------------

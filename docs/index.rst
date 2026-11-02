@@ -36,7 +36,7 @@ provides the default implementation:
 
    _domain.materialize()
 
-**2. An acceleration engine** — typically a separate package — provides a faster/better
+**2. An acceleration engine** — often a separate package — provides a faster/better
 implementation of any subset of those candidates:
 
 .. code-block:: python
