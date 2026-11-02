@@ -111,3 +111,8 @@ Module resolution is by name only (`_domain_name_from_module` in `domain.py`, us
 ### `name` parameter
 
 Both `acceleration_candidate` and `override` accept a `name` parameter to specify an explicit lookup name instead of using `f.__name__`. This is important when the override function has a different name from the candidate, or when fully-qualified names are needed to avoid collisions across modules.
+
+## Reminders
+
+- If you edit `/docs/index.rst`, some content may overlap with `README.md`; make sure the latter does not fall out of date.
+- The "Supported platforms" section of `README.md` describes the operating systems and architectures the CI matrix in `.github/workflows/test_latest_versions.yml` actually covers. Changing either one means checking the other.
