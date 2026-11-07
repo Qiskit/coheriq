@@ -26,9 +26,8 @@ if TYPE_CHECKING:
 from .domain import (
     _RESERVED_ENGINE_NAME_PREFIX,
     AccelerationDomain,
-    _domain_name_from_module,
     _DomainState,
-    _get_domain_by_name,
+    _resolve_domain,
 )
 from .exceptions import (
     CoheriqEngineError,
@@ -62,23 +61,10 @@ class AccelerationEngine:
         to import the domain it accelerates, so passing the module avoids
         repeating that name as a string.
         """
-        if isinstance(domain_name, ModuleType):
-            domain_name = _domain_name_from_module(domain_name)
-        if isinstance(domain_name, AccelerationDomain):
-            domain = domain_name
-            domain_name = domain._name
-        elif isinstance(domain_name, str):
-            try:
-                domain = _get_domain_by_name(domain_name)
-            except KeyError:
-                raise CoheriqEngineError(
-                    f"No domain named '{domain_name}' has been registered"
-                ) from None
-        else:
-            raise CoheriqEngineError(
-                f"domain must be an AccelerationDomain, a module, or the name of "
-                f"a domain, got {type(domain_name).__name__} instead"
-            )
+        # An engine naming a domain that is not registered is library misuse,
+        # not a user mistake, so it is a CoheriqEngineError rather than the
+        # CoheriqUserError that enable_engine() raises for the same input.
+        domain, resolved_name = _resolve_domain(domain_name, CoheriqEngineError)
         if not isinstance(engine_name, str):
             raise CoheriqEngineError("engine name must be a string")
         if not engine_name:
@@ -90,7 +76,7 @@ class AccelerationEngine:
                 f"claimed by an engine"
             )
         self._state = _EngineState.CONSTRUCTING
-        self._domain_name = domain_name
+        self._domain_name = resolved_name
         self._domain = domain
         self._engine_name = engine_name
         self._dict: dict[str, Callable] = {}
@@ -123,7 +109,7 @@ class AccelerationEngine:
                 if base_engine._domain is not domain:
                     raise CoheriqEngineError(
                         f"Base engine '{base_engine._engine_name}' belongs to domain "
-                        f"'{base_engine._domain_name}', not '{domain_name}'"
+                        f"'{base_engine._domain_name}', not '{resolved_name}'"
                     )
                 resolved.append(base_engine)
             self._bases = tuple(resolved)
