@@ -16,6 +16,14 @@ rather see working code first, start with the :doc:`demonstrations
 Motivation
 ==========
 
+Coheriq originated in our experience developing software libraries at the
+intersection of quantum computing and high-performance computing (HPC).  The
+`Qiskit addons <https://quantum.cloud.ibm.com/docs/en/guides/addons>`__ are a
+case in point: they typically provide high-level Python interfaces to
+classically expensive problems.  Such an interface is a natural
+boundary for optional acceleration: it can stay fixed while the heavy
+implementation underneath is swapped for one built by HPC specialists.
+
 High-performance re-implementations of a library's functionality often come
 with heavyweight or non-portable requirements: a particular GPU, an MPI
 installation built against a specific system, or a compiler toolchain that not
@@ -99,7 +107,7 @@ The activation contract
 =======================
 
 The rules governing engine activation follow the shape of the environments
-Coheriq is built for.  **The activation model is the job scheduler's model.** A
+Coheriq is built for.  **The activation model is the HPC job scheduler's model.** A
 scheduler allocates resources for the life of a job; SPMD ranks are fixed at
 launch; ``srun`` and ``mpirun`` settle the world size before Python starts.
 Nothing about that allocation is renegotiated halfway through the run.

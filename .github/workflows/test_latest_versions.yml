@@ -25,7 +25,16 @@ jobs:
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14", "3.15"]
         toxenv: ["py,notebook,doctest,ragged,ragged-engine"]
         include:
+          # One job per operating system per architecture, so the platform
+          # support claim in README.md covers both architectures everywhere.
+          - os: ubuntu-24.04-arm
+            python-version: "3.15"
+            toxenv: "py,notebook,doctest,ragged,ragged-engine"
+          # macos-latest is ARM; macos-15-intel is the x86_64 counterpart.
           - os: macos-latest
+            python-version: "3.15"
+            toxenv: "py,notebook,doctest,ragged,ragged-engine"
+          - os: macos-15-intel
             python-version: "3.15"
             toxenv: "py,notebook,doctest,ragged,ragged-engine"
           # The py and doctest envs use `pytest --forked`, which needs os.fork()
@@ -34,6 +43,9 @@ jobs:
           # get the registry-dependent unit tests and their coverage; the rest
           # run in-process.
           - os: windows-latest
+            python-version: "3.15"
+            toxenv: "py-spawn,coverage-spawn,notebook,ragged,ragged-engine"
+          - os: windows-11-arm
             python-version: "3.15"
             toxenv: "py-spawn,coverage-spawn,notebook,ragged,ragged-engine"
     steps:
